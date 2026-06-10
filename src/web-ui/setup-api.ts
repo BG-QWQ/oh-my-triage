@@ -89,6 +89,44 @@ export interface WriteConfigResponse {
   message: string;
 }
 
+/** Token storage backends accepted by the setup API. */
+export type TokenStorage = 'keychain' | 'env' | 'encrypted-file';
+
+/** Scanner source payload used when persisting setup state. */
+export interface SaveSetupSource {
+  id: string;
+  type: ScannerType;
+  name?: string;
+  enabled: boolean;
+  path?: string;
+  project_key?: string;
+  token?: string;
+  options?: Record<string, unknown>;
+}
+
+/** Setup persistence request. */
+export interface SaveSetupRequest {
+  token_storage: TokenStorage;
+  sources: SaveSetupSource[];
+}
+
+/** Setup persistence response. */
+export interface SaveSetupResponse {
+  success: boolean;
+  config_path: string;
+  configured_scanners: ScannerType[];
+  warnings: string[];
+}
+
+/** Start-server response returned by the setup backend. */
+export interface StartServerResponse {
+  success: boolean;
+  command: string;
+  args: string[];
+  cwd: string;
+  message: string;
+}
+
 /** Health check response */
 export interface HealthResponse {
   status: 'ok';
@@ -152,6 +190,31 @@ export async function writeConfig(clientName: string, config: Record<string, unk
   return await apiFetch<WriteConfigResponse>('/api/setup/write-config', {
     method: 'POST',
     body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Persist scanner setup into the FindingBridge configuration file.
+ *
+ * Tokens are sent only to the local setup backend, which stores them through
+ * the configured credential backend and writes only token references to config.
+ */
+export async function saveSetup(request: SaveSetupRequest): Promise<SaveSetupResponse> {
+  return await apiFetch<SaveSetupResponse>('/api/setup/save', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+/**
+ * Ask the setup backend for the command used to start the MCP stdio server.
+ *
+ * Browser setup cannot safely own a stdio MCP session, so the backend returns
+ * the exact command the user or MCP client should run instead of faking launch.
+ */
+export async function startServer(): Promise<StartServerResponse> {
+  return await apiFetch<StartServerResponse>('/api/setup/start-server', {
+    method: 'POST',
   });
 }
 

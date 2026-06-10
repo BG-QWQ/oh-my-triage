@@ -66,6 +66,7 @@ export async function saveConfig(config: Config, configPath = getDefaultConfigPa
   try {
     await mkdir(dirname(targetPath), { recursive: true });
     await writeFile(targetPath, `${JSON.stringify(normalizedConfig, null, 2)}\n`, { encoding: 'utf-8', flag: 'w' });
+    explorer.clearCaches();
     return targetPath;
   } catch (error: unknown) {
     throw new FindingBridgeError({

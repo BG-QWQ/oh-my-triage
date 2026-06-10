@@ -1,12 +1,40 @@
 import { type IncomingMessage, type ServerResponse } from 'http';
+import { z } from 'zod';
 import { logger } from '../utils/logger.js';
 import { SonarCloudAdapter } from '../adapters/sonarcloud/sonarcloud-adapter.js';
 import { GitHubAdapter } from '../adapters/github/github-adapter.js';
 import { SarifAdapter } from '../adapters/sarif/sarif-adapter.js';
 import { detectMcpClients } from '../config/mcp-client-detector.js';
 import { writeMcpClientConfig } from '../config/mcp-config-writer.js';
-import { loadOrCreateConfig } from '../config/config.js';
+import { loadOrCreateConfig, saveConfig } from '../config/config.js';
+import { CredentialStore } from '../config/credential-store.js';
+import { TokenStorageSchema, type SourceConfig, type TokenStorage } from '../config/validation.js';
 import type { ScannerType } from './setup-api.js';
+
+const SetupSourceSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(['sarif', 'github', 'sonarcloud']),
+  name: z.string().min(1).optional(),
+  enabled: z.boolean().default(true),
+  path: z.string().optional(),
+  project_key: z.string().optional(),
+  token: z.string().optional(),
+  options: z.record(z.string(), z.unknown()).default({}),
+});
+
+const SaveSetupRequestSchema = z.object({
+  token_storage: TokenStorageSchema,
+  sources: z.array(SetupSourceSchema).default([]),
+});
+
+type SetupSourceInput = z.infer<typeof SetupSourceSchema>;
+
+class SetupValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SetupValidationError';
+  }
+}
 
 /** Parse JSON body from incoming request */
 async function parseBody<T>(req: IncomingMessage): Promise<T> {
@@ -35,11 +63,99 @@ function sendError(res: ServerResponse, status: number, message: string): void {
   sendJson(res, status, { error: message });
 }
 
-/** CORS headers for browser requests */
-function setCorsHeaders(res: ServerResponse): void {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+/** Return true when a browser origin is allowed to call the local setup API. */
+function isAllowedOrigin(req: IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  if (!origin) {
+    return true;
+  }
+
+  const host = req.headers.host;
+  if (!host) {
+    return false;
+  }
+
+  try {
+    const parsedOrigin = new URL(origin);
+    const localHosts = new Set(['localhost', '127.0.0.1', '[::1]']);
+    return parsedOrigin.protocol === 'http:' && localHosts.has(parsedOrigin.hostname) && parsedOrigin.host === host;
+  } catch {
+    return false;
+  }
+}
+
+/** Apply CORS headers only for trusted setup origins. */
+function setCorsHeaders(req: IncomingMessage, res: ServerResponse): void {
+  const origin = req.headers.origin;
+  if (origin && isAllowedOrigin(req)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+/** Return the CLI entrypoint used by generated MCP client configuration. */
+function getServerCommand(): { command: string; args: string[] } {
+  return {
+    command: process.execPath,
+    args: [process.argv[1] ?? 'findingbridge', 'server'],
+  };
+}
+
+/** Format a command for display in the browser without changing execution semantics. */
+function formatCommand(command: string, args: string[]): string {
+  return [command, ...args].map((part) => (part.includes(' ') ? `"${part}"` : part)).join(' ');
+}
+
+/** Return true when an options object contains a secret-shaped key anywhere inside it. */
+function hasSensitiveOptionKey(value: unknown): boolean {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (/token|api[_-]?key|secret|authorization|password|credential/i.test(key)) {
+      return true;
+    }
+    if (hasSensitiveOptionKey(nestedValue)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Read an allowed string option without preserving arbitrary untrusted keys. */
+function readStringOption(options: Record<string, unknown>, key: string): string | undefined {
+  const value = options[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+/** Keep only scanner-specific non-secret options for persisted source config. */
+function sanitizeSourceOptions(source: SetupSourceInput): Record<string, unknown> {
+  if (hasSensitiveOptionKey(source.options)) {
+    throw new SetupValidationError(`Options for ${source.name ?? source.id} include secret-shaped keys. Put scanner tokens in the token field instead.`);
+  }
+
+  switch (source.type) {
+    case 'github': {
+      return {
+        owner: readStringOption(source.options, 'owner'),
+        repo: readStringOption(source.options, 'repo'),
+      };
+    }
+    case 'sonarcloud': {
+      return {
+        organization: readStringOption(source.options, 'organization'),
+      };
+    }
+    case 'sarif':
+    default: {
+      return {};
+    }
+  }
 }
 
 /** Handle GET /api/setup/status */
@@ -178,6 +294,129 @@ async function handleWriteConfig(req: IncomingMessage, res: ServerResponse): Pro
   }
 }
 
+/** Handle POST /api/setup/save */
+async function handleSaveSetup(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const parsed = SaveSetupRequestSchema.safeParse(await parseBody<unknown>(req));
+    if (!parsed.success) {
+      sendJson(res, 400, {
+        error: 'Invalid setup payload',
+        issues: parsed.error.issues,
+      });
+      return;
+    }
+
+    const loadedConfig = await loadOrCreateConfig();
+    const credentialStore = new CredentialStore();
+    const warnings: string[] = [];
+    const sourceMap = new Map(loadedConfig.config.sources.map((source) => [source.id, source]));
+    const sources: SourceConfig[] = [];
+    let actualTokenStorage = parsed.data.token_storage;
+
+    for (const source of parsed.data.sources) {
+      const existingSource = sourceMap.get(source.id);
+      const resolvedToken = await resolveTokenRef({
+        source,
+        existingSource,
+        tokenStorage: parsed.data.token_storage,
+        credentialStore,
+        warnings,
+      });
+      if (resolvedToken.storage) {
+        actualTokenStorage = resolvedToken.storage;
+      }
+
+      sources.push({
+        id: source.id,
+        type: source.type,
+        name: source.name,
+        enabled: source.enabled,
+        path: source.path,
+        project_key: source.project_key,
+        token_ref: resolvedToken.tokenRef,
+        options: sanitizeSourceOptions(source),
+      });
+    }
+
+    const managedTypes = new Set<ScannerType>(['sarif', 'github', 'sonarcloud']);
+    const unmanagedSources = loadedConfig.config.sources.filter((source) => !managedTypes.has(source.type as ScannerType));
+    const nextConfig = {
+      ...loadedConfig.config,
+      token_storage: actualTokenStorage,
+      sources: [...unmanagedSources, ...sources],
+    };
+
+    const configPath = await saveConfig(nextConfig, loadedConfig.filepath);
+    sendJson(res, 200, {
+      success: true,
+      config_path: configPath,
+      configured_scanners: sources.map((source) => source.type),
+      warnings,
+    });
+  } catch (err) {
+    logger.error('Save setup error', { error: String(err) });
+    const message = err instanceof Error ? err.message : 'Failed to save setup';
+    sendError(res, err instanceof SetupValidationError ? 400 : 500, message);
+  }
+}
+
+/** Resolve a config-safe token reference for one setup source. */
+async function resolveTokenRef(params: {
+  source: SetupSourceInput;
+  existingSource?: SourceConfig;
+  tokenStorage: TokenStorage;
+  credentialStore: CredentialStore;
+  warnings: string[];
+}): Promise<{ tokenRef?: string; storage?: TokenStorage }> {
+  const { source, existingSource, tokenStorage, credentialStore, warnings } = params;
+  if (source.type === 'sarif') {
+    return {};
+  }
+
+  if (source.token && source.token.trim()) {
+    const result = await credentialStore.setToken(source.id, source.token.trim(), tokenStorage);
+    if (result.warning) {
+      warnings.push(result.warning);
+    }
+    return { tokenRef: result.tokenRef, storage: result.storage };
+  }
+
+  if (existingSource?.token_ref) {
+    return { tokenRef: existingSource.token_ref };
+  }
+
+  if (tokenStorage === 'env') {
+    const tokenRef = credentialStore.envName(source.id);
+    warnings.push(`Set ${tokenRef} before running FindingBridge.`);
+    return { tokenRef, storage: 'env' };
+  }
+
+  throw new SetupValidationError(`Token is required for ${source.name ?? source.id}.`);
+}
+
+/** Handle POST /api/setup/start-server */
+async function handleStartServer(_req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const loadedConfig = await loadOrCreateConfig();
+    if (!loadedConfig.config.database_path) {
+      sendError(res, 400, 'Database path is not configured. Save setup first, then retry.');
+      return;
+    }
+
+    const { command, args } = getServerCommand();
+    sendJson(res, 200, {
+      success: true,
+      command,
+      args,
+      cwd: process.cwd(),
+      message: `Run ${formatCommand(command, args)} in a terminal, or restart your configured MCP client so it launches FindingBridge over stdio.`,
+    });
+  } catch (err) {
+    logger.error('Start server command error', { error: String(err) });
+    sendError(res, 500, 'Failed to prepare server command');
+  }
+}
+
 /** Handle GET /api/setup/health */
 async function handleHealth(_req: IncomingMessage, res: ServerResponse): Promise<void> {
   sendJson(res, 200, {
@@ -196,7 +435,12 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     return false;
   }
 
-  setCorsHeaders(res);
+  setCorsHeaders(req, res);
+
+  if (!isAllowedOrigin(req)) {
+    sendError(res, 403, 'Cross-origin setup API requests are not allowed. Open the local FindingBridge setup wizard and retry.');
+    return true;
+  }
 
   if (method === 'OPTIONS') {
     res.writeHead(204);
@@ -219,6 +463,14 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
     }
     if (url === '/api/setup/write-config' && method === 'POST') {
       await handleWriteConfig(req, res);
+      return true;
+    }
+    if (url === '/api/setup/save' && method === 'POST') {
+      await handleSaveSetup(req, res);
+      return true;
+    }
+    if (url === '/api/setup/start-server' && method === 'POST') {
+      await handleStartServer(req, res);
       return true;
     }
     if (url === '/api/setup/health' && method === 'GET') {
