@@ -3,8 +3,9 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 /**
  * Register the guided triage workflow prompt.
  *
- * The prompt nudges clients through FindingBridge's intended read-only flow:
- * enumerate, inspect, explain, prioritize, deduplicate, and report findings.
+ * The prompt nudges clients through FindingBridge's intended flow: synchronize
+ * configured sources first, then enumerate, inspect, explain, prioritize,
+ * deduplicate, and report findings.
  */
 export function registerTriageWorkflowPrompt(server: McpServer): void {
   server.registerPrompt(
@@ -23,6 +24,7 @@ export function registerTriageWorkflowPrompt(server: McpServer): void {
               'Use FindingBridge to triage existing scanner findings without modifying source code.',
               '',
               'Recommended workflow:',
+              '0. If the user asks for current or latest scanner platform results, call findingbridge_sync_sources before reading findings.',
               '1. Call findingbridge_list_findings to identify open high-impact findings.',
               '2. Call findingbridge_get_finding_detail for each candidate, keeping code context minimal.',
               '3. Call findingbridge_explain_finding to produce audience-appropriate explanations.',
