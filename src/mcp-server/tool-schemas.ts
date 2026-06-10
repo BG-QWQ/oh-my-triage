@@ -128,7 +128,19 @@ export const GenerateReportInputSchema = z.object({
  */
 export const SyncSourcesInputSchema = z.object({
   source_ids: z.array(z.string().min(1)).max(20).optional(),
+  project_keys: z.record(z.string().min(1), z.string().min(1)).optional(),
   max_pages: z.number().int().min(1).max(100).default(20),
+});
+
+/**
+ * Validate scanner project discovery controls.
+ *
+ * Project discovery calls scanner APIs with configured credentials and returns
+ * project identifiers without modifying local FindingBridge state.
+ */
+export const ListSourceProjectsInputSchema = z.object({
+  source_ids: z.array(z.string().min(1)).max(20).optional(),
+  max_pages: z.number().int().min(1).max(50).default(10),
 });
 
 export type ListFindingsInput = z.infer<typeof ListFindingsInputSchema>;
@@ -139,3 +151,4 @@ export type PrioritizeFindingsInput = z.infer<typeof PrioritizeFindingsInputSche
 export type DeduplicateFindingsInput = z.infer<typeof DeduplicateFindingsInputSchema>;
 export type GenerateReportInput = z.infer<typeof GenerateReportInputSchema>;
 export type SyncSourcesInput = z.infer<typeof SyncSourcesInputSchema>;
+export type ListSourceProjectsInput = z.infer<typeof ListSourceProjectsInputSchema>;
