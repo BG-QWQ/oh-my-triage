@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "version": "2.15.0",
+          "rules": [
+            {
+              "id": "js/sql-injection",
+              "name": "SQL injection",
+              "shortDescription": { "text": "User-provided value flows into a SQL query" },
+              "properties": { "cwe": "CWE-89", "precision": "high" }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "js/sql-injection",
+          "message": { "text": "This query is vulnerable to SQL injection" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/db.ts" },
+                "region": { "startLine": 42, "startColumn": 10, "endLine": 42, "endColumn": 55 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

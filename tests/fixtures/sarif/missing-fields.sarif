@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "version": "2.15.0"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "js/missing-rule",
+          "message": { "text": "Result without full location" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/app.ts" },
+                "region": { "startLine": 5 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

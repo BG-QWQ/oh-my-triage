@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "findingbridge": {
+      "command": "findingbridge",
+      "args": ["server"],
+      "env": {
+        "FINDINGBRIDGE_DB_PATH": "~/.findingbridge/data.db"
+      }
+    }
+  }
+}

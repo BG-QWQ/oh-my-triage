@@ -1,0 +1,28 @@
+{
+  "issues": [
+    {
+      "key": "issue-1",
+      "rule": "javascript:S2189",
+      "severity": "BLOCKER",
+      "component": "my-project:src/db.ts",
+      "line": 42,
+      "message": "Refactor this loop"
+    },
+    {
+      "key": "issue-2",
+      "rule": "javascript:S1448",
+      "severity": "CRITICAL",
+      "component": "my-project:src/app.ts",
+      "line": 23,
+      "message": "Too many functions"
+    },
+    {
+      "key": "issue-3",
+      "rule": "javascript:S100",
+      "severity": "MAJOR",
+      "component": "my-project:src/utils.ts",
+      "line": 15,
+      "message": "Rename function"
+    }
+  ]
+}

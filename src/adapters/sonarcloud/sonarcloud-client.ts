@@ -1,0 +1,122 @@
+﻿import { Buffer } from 'buffer';
+import { ErrorCodes, FindingBridgeError } from '../../core/errors.js';
+import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
+import {
+  SonarCloudAuthValidationSchema,
+  SonarCloudIssueSearchSchema,
+  SonarCloudProjectSearchSchema,
+  type SonarCloudIssueSearch,
+  type SonarCloudProject,
+} from './sonarcloud-schemas.js';
+
+const SONARCLOUD_API_BASE = 'https://sonarcloud.io';
+const PAGE_SIZE = 100;
+
+/** Configuration for SonarCloud Web API access. */
+export type SonarCloudClientOptions = {
+  token: string;
+  organization?: string;
+  projectKey?: string;
+  apiBaseUrl?: string;
+};
+
+/** SonarCloud client for authentication, project discovery, and issue pagination. */
+export class SonarCloudClient {
+  private readonly token: string;
+  private readonly organization?: string;
+  private readonly apiBaseUrl: string;
+
+  constructor(options: SonarCloudClientOptions) {
+    this.token = options.token;
+    this.organization = options.organization;
+    this.apiBaseUrl = options.apiBaseUrl ?? SONARCLOUD_API_BASE;
+  }
+
+  /** Validate the configured SonarCloud token with /api/authentication/validate. */
+  async validateToken(): Promise<boolean> {
+    const response = await this.request('/api/authentication/validate');
+    const body = await response.json() as unknown;
+    const parsed = SonarCloudAuthValidationSchema.parse(body);
+    if (!parsed.valid) {
+      throw new FindingBridgeError({
+        code: ErrorCodes.TOKEN_INVALID,
+        message: 'SonarCloud token validation returned valid=false.',
+        nextSteps: [
+          'Generate a new SonarCloud user token.',
+          'Update the FindingBridge SonarCloud credential and rerun the connection test.',
+        ],
+        retryable: false,
+      });
+    }
+    return true;
+  }
+
+  /** List projects visible to the token using /api/projects/search pagination. */
+  async listProjects(page = 1): Promise<{ projects: SonarCloudProject[]; total: number; hasMore: boolean }> {
+    const params = new URLSearchParams({ p: String(page), ps: String(PAGE_SIZE) });
+    if (this.organization) {
+      params.set('organization', this.organization);
+    }
+    const response = await this.request(`/api/projects/search?${params.toString()}`);
+    const body = await response.json() as unknown;
+    const parsed = SonarCloudProjectSearchSchema.parse(body);
+    return {
+      projects: parsed.components,
+      total: parsed.paging.total,
+      hasMore: parsed.paging.pageIndex * parsed.paging.pageSize < parsed.paging.total,
+    };
+  }
+
+  /** Fetch one page of SonarCloud issues for a project with ps=100. */
+  async searchIssues(projectKey: string, page: number): Promise<SonarCloudIssueSearch> {
+    try {
+      const params = new URLSearchParams({
+        componentKeys: projectKey,
+        p: String(page),
+        ps: String(PAGE_SIZE),
+      });
+      const response = await this.request(`/api/issues/search?${params.toString()}`);
+      const body = await response.json() as unknown;
+      return SonarCloudIssueSearchSchema.parse(body);
+    } catch (error: unknown) {
+      throw toAdapterError(error, {
+        code: ErrorCodes.ADAPTER_FETCH_FAILED,
+        message: 'SonarCloud issue search failed.',
+        nextSteps: [
+          'Verify the project key exists in SonarCloud and the token can browse issues.',
+          'Run the SonarCloud connection test before fetching findings.',
+        ],
+      });
+    }
+  }
+
+  private async request(path: string): Promise<Response> {
+    const response = await fetch(`${this.apiBaseUrl}${path}`, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Basic ${Buffer.from(`${this.token}:`).toString('base64')}`,
+        'User-Agent': 'FindingBridge/0.1',
+      },
+    });
+
+    if (!response.ok) {
+      const body = await safeResponseText(response);
+      throw createHttpAdapterError({
+        source: 'SonarCloud',
+        status: response.status,
+        statusText: response.statusText,
+        body,
+      });
+    }
+
+    return response;
+  }
+}
+
+async function safeResponseText(response: Response): Promise<string | undefined> {
+  try {
+    return await response.text();
+  } catch {
+    return undefined;
+  }
+}

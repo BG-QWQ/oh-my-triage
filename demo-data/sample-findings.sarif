@@ -1,0 +1,138 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "version": "2.15.0",
+          "rules": [
+            {
+              "id": "js/sql-injection",
+              "name": "SQL injection",
+              "shortDescription": {
+                "text": "User-provided value flows into a SQL query"
+              },
+              "help": {
+                "text": "Use parameterized queries instead of string concatenation."
+              },
+              "properties": {
+                "cwe": "CWE-89",
+                "precision": "high"
+              }
+            },
+            {
+              "id": "js/xss",
+              "name": "Cross-site scripting",
+              "shortDescription": {
+                "text": "User-provided value flows into HTML output"
+              },
+              "help": {
+                "text": "Use a HTML sanitization library."
+              },
+              "properties": {
+                "cwe": "CWE-79",
+                "precision": "high"
+              }
+            },
+            {
+              "id": "js/hardcoded-credentials",
+              "name": "Hardcoded credentials",
+              "shortDescription": {
+                "text": "Hardcoded secret detected in source"
+              },
+              "help": {
+                "text": "Remove hardcoded credentials and use environment variables."
+              },
+              "properties": {
+                "cwe": "CWE-798",
+                "precision": "very-high"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "js/sql-injection",
+          "ruleIndex": 0,
+          "message": {
+            "text": "This query appears to be vulnerable to SQL injection because user input is concatenated directly into the query string."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/db.ts"
+                },
+                "region": {
+                  "startLine": 42,
+                  "startColumn": 10,
+                  "endLine": 42,
+                  "endColumn": 55
+                }
+              }
+            }
+          ],
+          "properties": {
+            "alert_number": 1,
+            "alert_url": "https://github.com/example/repo/security/code-scanning/1"
+          }
+        },
+        {
+          "ruleId": "js/xss",
+          "ruleIndex": 1,
+          "message": {
+            "text": "User input is rendered directly into the DOM without sanitization."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/app.ts"
+                },
+                "region": {
+                  "startLine": 23,
+                  "startColumn": 5,
+                  "endLine": 23,
+                  "endColumn": 45
+                }
+              }
+            }
+          ],
+          "properties": {
+            "alert_number": 2,
+            "alert_url": "https://github.com/example/repo/security/code-scanning/2"
+          }
+        },
+        {
+          "ruleId": "js/hardcoded-credentials",
+          "ruleIndex": 2,
+          "message": {
+            "text": "Hardcoded API key detected in source code."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/config.ts"
+                },
+                "region": {
+                  "startLine": 8,
+                  "startColumn": 15,
+                  "endLine": 8,
+                  "endColumn": 55
+                }
+              }
+            }
+          ],
+          "properties": {
+            "alert_number": 3,
+            "alert_url": "https://github.com/example/repo/security/code-scanning/3"
+          }
+        }
+      ]
+    }
+  ]
+}

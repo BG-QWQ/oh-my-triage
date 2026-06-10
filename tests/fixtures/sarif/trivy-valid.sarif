@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Trivy",
+          "version": "0.48.0",
+          "rules": [
+            {
+              "id": "CVE-2023-1234",
+              "name": "CVE-2023-1234",
+              "shortDescription": { "text": "Remote code execution in libfoo" },
+              "properties": { "cwe": "CWE-502", "precision": "high" }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2023-1234",
+          "message": { "text": "Remote code execution vulnerability" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "package.json" },
+                "region": { "startLine": 10, "startColumn": 5, "endLine": 10, "endColumn": 25 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

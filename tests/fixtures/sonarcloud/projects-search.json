@@ -1,0 +1,14 @@
+{
+  "components": [
+    {
+      "key": "my-project",
+      "name": "My Project",
+      "organization": "my-org"
+    },
+    {
+      "key": "another-project",
+      "name": "Another Project",
+      "organization": "my-org"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Semgrep",
+          "version": "1.50.0",
+          "rules": [
+            {
+              "id": "javascript.lang.security.audit.detect-eval-with-expression.detect-eval-with-expression",
+              "name": "Dangerous eval",
+              "shortDescription": { "text": "Detected eval with expression" }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "javascript.lang.security.audit.detect-eval-with-expression.detect-eval-with-expression",
+          "message": { "text": "eval() is dangerous" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/utils.ts" },
+                "region": { "startLine": 15, "startColumn": 1, "endLine": 15, "endColumn": 30 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "number": 1,
+    "rule": {
+      "id": "js/sql-injection",
+      "severity": "high",
+      "description": "SQL injection vulnerability",
+      "name": "SQL injection"
+    },
+    "message": {
+      "text": "This query is vulnerable to SQL injection"
+    },
+    "locations": [
+      {
+        "path": "src/db.ts",
+        "start_line": 42,
+        "start_column": 10,
+        "end_line": 42,
+        "end_column": 55
+      }
+    ],
+    "state": "open",
+    "html_url": "https://github.com/example/repo/security/code-scanning/1",
+    "tool": {
+      "name": "CodeQL",
+      "version": "2.15.0"
+    },
+    "most_recent_instance": {
+      "ref": "refs/heads/main",
+      "state": "open",
+      "location": {
+        "path": "src/db.ts",
+        "start_line": 42
+      }
+    }
+  },
+  {
+    "number": 2,
+    "rule": {
+      "id": "js/xss",
+      "severity": "medium",
+      "description": "Cross-site scripting",
+      "name": "XSS"
+    },
+    "message": {
+      "text": "User input rendered directly into DOM"
+    },
+    "locations": [
+      {
+        "path": "src/app.ts",
+        "start_line": 23,
+        "start_column": 5,
+        "end_line": 23,
+        "end_column": 45
+      }
+    ],
+    "state": "open",
+    "html_url": "https://github.com/example/repo/security/code-scanning/2",
+    "tool": {
+      "name": "CodeQL",
+      "version": "2.15.0"
+    },
+    "most_recent_instance": {
+      "ref": "refs/heads/main",
+      "state": "open",
+      "location": {
+        "path": "src/app.ts",
+        "start_line": 23
+      }
+    }
+  }
+]

@@ -1,0 +1,127 @@
+﻿import { ErrorCodes, FindingBridgeError } from '../../core/errors.js';
+import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
+import { GitHubCodeScanningAlertPageSchema, type GitHubCodeScanningAlertPage } from './github-schemas.js';
+
+const GITHUB_API_BASE = 'https://api.github.com';
+const REQUIRED_SCOPES = ['security_events'];
+
+/** Configuration for GitHub REST API access. */
+export type GitHubClientOptions = {
+  token: string;
+  owner: string;
+  repo: string;
+  apiBaseUrl?: string;
+};
+
+/** Result returned after validating GitHub token and scope access. */
+export type GitHubConnectionValidation = {
+  valid: true;
+  observedScopes: string[];
+};
+
+/** Minimal GitHub Code Scanning REST client with validated pagination. */
+export class GitHubClient {
+  private readonly token: string;
+  private readonly owner: string;
+  private readonly repo: string;
+  private readonly apiBaseUrl: string;
+
+  constructor(options: GitHubClientOptions) {
+    this.token = options.token;
+    this.owner = options.owner;
+    this.repo = options.repo;
+    this.apiBaseUrl = options.apiBaseUrl ?? GITHUB_API_BASE;
+  }
+
+  /** Validate that the token can access the configured repository and has scanner scopes when GitHub reports them. */
+  async validateConnection(): Promise<GitHubConnectionValidation> {
+    const response = await this.request(`/repos/${encodeURIComponent(this.owner)}/${encodeURIComponent(this.repo)}`);
+    const observedScopes = parseScopes(response.headers.get('x-oauth-scopes'));
+    const missingScopes = missingRequiredScopes(observedScopes, REQUIRED_SCOPES);
+    if (observedScopes.length > 0 && missingScopes.length > 0) {
+      throw new FindingBridgeError({
+        code: ErrorCodes.PERMISSION_DENIED,
+        message: `GitHub token is missing required scope(s): ${missingScopes.join(', ')}.`,
+        nextSteps: [
+          'Create a GitHub token with code scanning/security events read access for the repository.',
+          'Update the FindingBridge GitHub token and rerun the connection test.',
+        ],
+        retryable: false,
+        details: { observed_scopes: observedScopes, required_scopes: REQUIRED_SCOPES },
+      });
+    }
+    return { valid: true, observedScopes };
+  }
+
+  /** Fetch one page of Code Scanning alerts with per_page fixed at 100. */
+  async listCodeScanningAlerts(page: number): Promise<GitHubCodeScanningAlertPage> {
+    try {
+      const response = await this.request(
+        `/repos/${encodeURIComponent(this.owner)}/${encodeURIComponent(this.repo)}/code-scanning/alerts?per_page=100&page=${page}`
+      );
+      const body = await response.json() as unknown;
+      return GitHubCodeScanningAlertPageSchema.parse(body);
+    } catch (error: unknown) {
+      throw toAdapterError(error, {
+        code: ErrorCodes.ADAPTER_FETCH_FAILED,
+        message: 'GitHub Code Scanning alert fetch failed.',
+        nextSteps: [
+          'Verify code scanning is enabled for the repository.',
+          'Confirm the token has repository security event read permissions.',
+        ],
+      });
+    }
+  }
+
+  private async request(path: string): Promise<Response> {
+    const response = await fetch(`${this.apiBaseUrl}${path}`, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${this.token}`,
+        'User-Agent': 'FindingBridge/0.1',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
+    if (!response.ok) {
+      const body = await safeResponseText(response);
+      throw createHttpAdapterError({
+        source: 'GitHub',
+        status: response.status,
+        statusText: response.statusText,
+        body,
+        requiredScopes: REQUIRED_SCOPES,
+        observedScopes: parseScopes(response.headers.get('x-oauth-scopes')),
+      });
+    }
+
+    return response;
+  }
+}
+
+/** Parse the X-OAuth-Scopes header into scope names. */
+export function parseScopes(header: string | null): string[] {
+  if (!header) {
+    return [];
+  }
+  return header
+    .split(',')
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+}
+
+/** Return required GitHub scopes not represented by the observed token scopes. */
+export function missingRequiredScopes(observedScopes: string[], requiredScopes: string[]): string[] {
+  if (observedScopes.includes('repo')) {
+    return [];
+  }
+  return requiredScopes.filter((scope) => !observedScopes.includes(scope));
+}
+
+async function safeResponseText(response: Response): Promise<string | undefined> {
+  try {
+    return await response.text();
+  } catch {
+    return undefined;
+  }
+}

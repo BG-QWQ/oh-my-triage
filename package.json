@@ -1,0 +1,77 @@
+{
+  "name": "findingbridge",
+  "version": "0.1.0",
+  "description": "Open-source, self-hosted, privacy-first MCP-based triage layer for code/security scanner findings",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "findingbridge": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "demo-data",
+    "release-assets",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests --ext .ts,.tsx",
+    "test": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "coverage": "vitest run --coverage",
+    "start": "node dist/cli/index.js server",
+    "mcp:inspect": "echo 'Run MCP Inspector against stdio transport'"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@inquirer/prompts": "^7.2.0",
+    "better-sqlite3": "^11.7.0",
+    "commander": "^12.1.0",
+    "cosmiconfig": "^9.0.0",
+    "keytar": "^7.9.0",
+    "open": "^10.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^20.17.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "eslint": "^9.15.0",
+    "prettier": "^3.4.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^2.1.0"
+  },
+  "keywords": [
+    "mcp",
+    "security",
+    "scanner",
+    "sarif",
+    "triage",
+    "code-quality",
+    "static-analysis",
+    "github",
+    "sonarcloud",
+    "sast",
+    "sca"
+  ],
+  "author": "FindingBridge Contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourname/findingbridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourname/findingbridge/issues"
+  },
+  "homepage": "https://github.com/yourname/findingbridge#readme"
+}

@@ -1,0 +1,37 @@
+[
+  {
+    "number": 3,
+    "rule": {
+      "id": "js/hardcoded-credentials",
+      "severity": "critical",
+      "description": "Hardcoded credentials detected",
+      "name": "Hardcoded credentials"
+    },
+    "message": {
+      "text": "Hardcoded API key detected"
+    },
+    "locations": [
+      {
+        "path": "src/config.ts",
+        "start_line": 8,
+        "start_column": 15,
+        "end_line": 8,
+        "end_column": 55
+      }
+    ],
+    "state": "open",
+    "html_url": "https://github.com/example/repo/security/code-scanning/3",
+    "tool": {
+      "name": "CodeQL",
+      "version": "2.15.0"
+    },
+    "most_recent_instance": {
+      "ref": "refs/heads/main",
+      "state": "open",
+      "location": {
+        "path": "src/config.ts",
+        "start_line": 8
+      }
+    }
+  }
+]
