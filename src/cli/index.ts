@@ -6,6 +6,7 @@ import { createServerCommand } from './commands/server.js';
 import { createSetupCommand } from './commands/setup.js';
 import { createConfigCommand } from './commands/config.js';
 import { createDiagnoseCommand } from './commands/diagnose.js';
+import { createSyncCommand } from './commands/sync.js';
 import { VERSION } from '../utils/version.js';
 import { redactSecrets } from '../utils/redaction.js';
 
@@ -16,6 +17,7 @@ const program = new Command()
 
 program.addCommand(createInitCommand());
 program.addCommand(createIngestCommand());
+program.addCommand(createSyncCommand());
 program.addCommand(createServerCommand());
 program.addCommand(createSetupCommand());
 program.addCommand(createConfigCommand());
