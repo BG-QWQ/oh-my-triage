@@ -191,7 +191,7 @@ export class SourceSyncService {
             code: ErrorCodes.CONFIG_INVALID,
             message: `SonarCloud source ${source.id} requires token and project_key.`,
             nextSteps: [
-              'Call findingbridge_list_source_projects to list SonarCloud project keys visible to this token.',
+              'Call findingbridge_list_source_projects with organizations[source_id] if the SonarCloud source configuration does not include an organization.',
               'Choose the project that matches the current repository and pass it to findingbridge_sync_sources as project_keys[source_id], or save it as this source project_key before retrying sync.',
             ],
             retryable: false,
