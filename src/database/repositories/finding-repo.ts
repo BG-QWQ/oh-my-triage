@@ -166,6 +166,13 @@ export class FindingRepository {
     return result;
   }
 
+  /** List scanner tool names currently present in stored findings. */
+  listTools(): string[] {
+    const stmt = this.db.prepare('SELECT DISTINCT tool FROM findings ORDER BY tool ASC');
+    const rows = stmt.all() as Array<{ tool: string }>;
+    return rows.map((row) => row.tool);
+  }
+
   /** Update duplicate status for findings */
   markDuplicates(groupId: string, findingIds: string[]): void {
     const stmt = this.db.prepare(`
