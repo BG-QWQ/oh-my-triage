@@ -142,8 +142,8 @@ export function mapSonarCloudIssueToFinding(issue: SonarCloudIssue, projectRoot?
           effort_estimate: issue.effort,
         }
       : undefined,
-    first_seen_at: issue.creationDate,
-    last_seen_at: issue.updateDate,
+    first_seen_at: normalizeSonarCloudTimestamp(issue.creationDate),
+    last_seen_at: normalizeSonarCloudTimestamp(issue.updateDate),
     dismissed_reason: issue.resolution,
     raw_data: issue,
   };
@@ -186,4 +186,14 @@ function cweFromTags(tags?: string[]): string | undefined {
 
 function owaspFromTags(tags?: string[]): string | undefined {
   return tags?.find((tag) => /^owasp/i.test(tag));
+}
+
+function normalizeSonarCloudTimestamp(value: string): string {
+  const normalizedOffset = value.replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+  const timestamp = Date.parse(normalizedOffset);
+  if (Number.isNaN(timestamp)) {
+    return value;
+  }
+
+  return new Date(timestamp).toISOString();
 }
