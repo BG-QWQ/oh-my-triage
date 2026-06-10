@@ -120,6 +120,17 @@ export const GenerateReportInputSchema = z.object({
   language: z.string().min(2).default('en'),
 });
 
+/**
+ * Validate source synchronization controls.
+ *
+ * The tool writes scanner results into the local FindingBridge database only;
+ * it never modifies user repositories or external scanner state.
+ */
+export const SyncSourcesInputSchema = z.object({
+  source_ids: z.array(z.string().min(1)).max(20).optional(),
+  max_pages: z.number().int().min(1).max(100).default(20),
+});
+
 export type ListFindingsInput = z.infer<typeof ListFindingsInputSchema>;
 export type GetFindingDetailInput = z.infer<typeof GetFindingDetailInputSchema>;
 export type ExplainFindingInput = z.infer<typeof ExplainFindingInputSchema>;
@@ -127,3 +138,4 @@ export type SuggestFixInput = z.infer<typeof SuggestFixInputSchema>;
 export type PrioritizeFindingsInput = z.infer<typeof PrioritizeFindingsInputSchema>;
 export type DeduplicateFindingsInput = z.infer<typeof DeduplicateFindingsInputSchema>;
 export type GenerateReportInput = z.infer<typeof GenerateReportInputSchema>;
+export type SyncSourcesInput = z.infer<typeof SyncSourcesInputSchema>;

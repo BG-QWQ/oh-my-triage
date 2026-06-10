@@ -9,6 +9,7 @@ import {
   ListFindingsInputSchema,
   PrioritizeFindingsInputSchema,
   SuggestFixInputSchema,
+  SyncSourcesInputSchema,
 } from '../tool-schemas.js';
 import { deduplicateFindingsTool } from './deduplicate-findings.js';
 import { explainFindingTool } from './explain-finding.js';
@@ -18,12 +19,20 @@ import { listFindingsTool } from './list-findings.js';
 import { prioritizeFindingsTool } from './prioritize-findings.js';
 import { suggestFixTool } from './suggest-fix.js';
 import { summaryTool } from './summary.js';
+import { syncSourcesTool } from './sync-sources.js';
 
 const READ_ONLY_TOOL_ANNOTATIONS: ToolAnnotations = {
   readOnlyHint: true,
   destructiveHint: false,
   idempotentHint: true,
   openWorldHint: false,
+};
+
+const LOCAL_WRITE_TOOL_ANNOTATIONS: ToolAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
 };
 
 /**
@@ -136,5 +145,17 @@ export function registerFindingBridgeTools(
       annotations: { ...READ_ONLY_TOOL_ANNOTATIONS, title: 'Generate Report' },
     },
     (input) => generateReportTool(context, GenerateReportInputSchema.parse(input))
+  );
+
+  server.registerTool(
+    'findingbridge_sync_sources',
+    {
+      title: 'Sync Scanner Sources',
+      description:
+        'Synchronize configured scanner sources into the local FindingBridge database. This may call scanner APIs and write findings to FindingBridge storage, but it never modifies user repositories.',
+      inputSchema: SyncSourcesInputSchema.shape,
+      annotations: { ...LOCAL_WRITE_TOOL_ANNOTATIONS, title: 'Sync Scanner Sources' },
+    },
+    async (input) => syncSourcesTool(context, SyncSourcesInputSchema.parse(input))
   );
 }
