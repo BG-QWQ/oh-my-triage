@@ -49,6 +49,7 @@ export interface FindingBridgeProvenanceWarning {
   message: string;
   configured_sources: Array<{ id: string; type: string; expected_tools: string[] }>;
   observed_tools: string[];
+  remediation_steps: string[];
   agent_instruction: string;
 }
 
@@ -118,6 +119,7 @@ export function findingProvenanceWarnings(context: FindingBridgeMcpContext): Fin
         message: 'This MCP server is running in demo mode, so findings come from bundled sample data.',
         configured_sources: configuredSources,
         observed_tools: redactedObservedTools,
+        remediation_steps: demoDataRemediationSteps(),
         agent_instruction: 'Tell the user these are demo findings. Do not present them as code review platform results.',
       },
     ];
@@ -130,8 +132,9 @@ export function findingProvenanceWarnings(context: FindingBridgeMcpContext): Fin
         message: 'The database contains findings, but no enabled scanner sources are configured for this MCP server.',
         configured_sources: configuredSources,
         observed_tools: redactedObservedTools,
+        remediation_steps: staleDatabaseRemediationSteps(),
         agent_instruction:
-          'Treat these as local/stale/imported findings until the user confirms which scanner produced them.',
+          'Treat these as local/stale/imported findings until the user confirms which scanner produced them. Tell the user to clear or replace the stale database before importing current scanner results.',
       },
     ];
   }
@@ -149,9 +152,27 @@ export function findingProvenanceWarnings(context: FindingBridgeMcpContext): Fin
         'The database contains findings from scanner tools that do not match the currently configured FindingBridge sources.',
       configured_sources: configuredSources,
       observed_tools: redactedObservedTools,
+      remediation_steps: staleDatabaseRemediationSteps(),
       agent_instruction:
-        'Warn the user that these findings may be stale, demo, or manually imported data rather than results from the configured code review platform.',
+        'Warn the user that these findings may be stale, demo, or manually imported data rather than results from the configured code review platform. Tell them to clear or replace the stale database, then import current platform results before relying on the findings.',
     },
+  ];
+}
+
+function staleDatabaseRemediationSteps(): string[] {
+  return [
+    'Do not treat the current findings as results from the configured code review platform until the database has been rebuilt from that platform.',
+    'Find the configured database path with `findingbridge config show`, then back up and delete that stale SQLite database file, or start the MCP server with a fresh database path using `findingbridge server --db path/to/findingbridge.db`.',
+    'If the platform can export SARIF, export the latest results and import them with `findingbridge ingest --sarif path/to/results.sarif --db path/to/findingbridge.db` before restarting the MCP server.',
+    'If the platform cannot export SARIF and FindingBridge has no adapter for it, add a scanner adapter before claiming platform-backed findings.',
+  ];
+}
+
+function demoDataRemediationSteps(): string[] {
+  return [
+    'Restart FindingBridge without `--demo` before using real scanner results.',
+    'Use a real configured database, or pass one explicitly with `findingbridge server --db path/to/findingbridge.db`.',
+    'Import current scanner results first, for example `findingbridge ingest --sarif path/to/results.sarif --db path/to/findingbridge.db` when the platform can export SARIF.',
   ];
 }
 

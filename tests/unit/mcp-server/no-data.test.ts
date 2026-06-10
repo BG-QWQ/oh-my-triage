@@ -108,6 +108,13 @@ describe('MCP no-data responses', () => {
       expect.objectContaining({
         code: 'source_tool_mismatch',
         observed_tools: ['CodeQL'],
+        remediation_steps: expect.arrayContaining([
+          expect.stringContaining('Do not treat the current findings as results from the configured code review platform'),
+          expect.stringContaining('findingbridge config show'),
+          expect.stringContaining('findingbridge server --db path/to/findingbridge.db'),
+          expect.stringContaining('findingbridge ingest --sarif path/to/results.sarif --db path/to/findingbridge.db'),
+          expect.stringContaining('add a scanner adapter'),
+        ]),
         agent_instruction: expect.stringContaining('configured code review platform'),
       }),
     ]);
@@ -131,6 +138,9 @@ describe('MCP no-data responses', () => {
       expect.objectContaining({
         code: 'unconfigured_findings',
         observed_tools: [expect.stringContaining('***REDACTED***')],
+        remediation_steps: expect.arrayContaining([
+          expect.stringContaining('back up and delete that stale SQLite database file'),
+        ]),
       }),
     ]);
   });
