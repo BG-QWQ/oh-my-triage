@@ -1,5 +1,4 @@
-﻿import { Buffer } from 'buffer';
-import { ErrorCodes, FindingBridgeError } from '../../core/errors.js';
+﻿import { ErrorCodes, FindingBridgeError } from '../../core/errors.js';
 import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
 import {
   SonarCloudAuthValidationSchema,
@@ -94,7 +93,7 @@ export class SonarCloudClient {
     const response = await fetch(`${this.apiBaseUrl}${path}`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Basic ${Buffer.from(`${this.token}:`).toString('base64')}`,
+        Authorization: `Bearer ${this.token}`,
         'User-Agent': 'FindingBridge/0.1',
       },
     });
