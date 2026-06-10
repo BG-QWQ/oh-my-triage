@@ -11,7 +11,7 @@
 If you discover a security vulnerability in FindingBridge:
 
 1. **Do not** open a public issue
-2. Email: security@findingbridge.dev (placeholder)
+2. Email: bg-qwq@qq.com
 3. Include:
    - Description of vulnerability
    - Steps to reproduce
