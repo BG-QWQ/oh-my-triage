@@ -22,6 +22,7 @@ export async function listSourceProjectsTool(
     });
     const result = await service.discoverProjects({
       sourceIds: input.source_ids,
+      organizations: input.organizations,
       maxPages: input.max_pages,
     });
     return toolSuccess({
@@ -29,6 +30,7 @@ export async function listSourceProjectsTool(
       repository_modified: false,
       database_modified: false,
       recommended_next_steps: [
+        'For SonarCloud, provide organizations[source_id] when the source configuration does not include an organization.',
         'Choose the project key that matches the current repository.',
         'Call findingbridge_sync_sources with project_keys: { [source_id]: selected_project_key } to sync without editing configuration.',
       ],

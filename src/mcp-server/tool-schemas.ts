@@ -140,6 +140,7 @@ export const SyncSourcesInputSchema = z.object({
  */
 export const ListSourceProjectsInputSchema = z.object({
   source_ids: z.array(z.string().min(1)).max(20).optional(),
+  organizations: z.record(z.string().min(1), z.string().min(1)).optional(),
   max_pages: z.number().int().min(1).max(50).default(10),
 });
 

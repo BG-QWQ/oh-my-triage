@@ -50,6 +50,66 @@ describe('ProjectDiscoveryService', () => {
     ]);
   });
 
+  it('uses per-call SonarCloud organization overrides without persisting config changes', async () => {
+    let observedOrganization: string | undefined;
+    const config = createConfig([
+      {
+        id: 'sonarcloud',
+        type: 'sonarcloud',
+        enabled: true,
+        options: {},
+        token_ref: 'sonarcloud',
+      },
+    ]);
+    const service = new ProjectDiscoveryService({
+      config,
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      createSonarCloudClient: (source, token) => {
+        observedOrganization = source.options.organization as string | undefined;
+        return new StaticSonarCloudClient(token);
+      },
+    });
+
+    const result = await service.discoverProjects({ organizations: { sonarcloud: 'acme' } });
+
+    expect(result.sources_succeeded).toBe(1);
+    expect(observedOrganization).toBe('acme');
+    expect(config.sources[0]?.options.organization).toBeUndefined();
+  });
+
+  it('returns an actionable failure when SonarCloud organization is missing', async () => {
+    let createClientCalled = false;
+    const service = new ProjectDiscoveryService({
+      config: createConfig([
+        {
+          id: 'sonarcloud',
+          type: 'sonarcloud',
+          enabled: true,
+          options: {},
+          token_ref: 'sonarcloud',
+        },
+      ]),
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      createSonarCloudClient: (_source, token) => {
+        createClientCalled = true;
+        return new StaticSonarCloudClient(token);
+      },
+    });
+
+    const result = await service.discoverProjects();
+
+    expect(createClientCalled).toBe(false);
+    expect(result.sources_failed).toBe(1);
+    expect(result.results[0]).toMatchObject({
+      source_id: 'sonarcloud',
+      status: 'failed',
+      error_message: expect.stringContaining('requires organization'),
+      next_steps: expect.arrayContaining([
+        expect.stringContaining('organizations: { "sonarcloud": "your-org-key" }'),
+      ]),
+    });
+  });
+
   it('returns an actionable failure when the source token is missing', async () => {
     const service = new ProjectDiscoveryService({
       config: createConfig([

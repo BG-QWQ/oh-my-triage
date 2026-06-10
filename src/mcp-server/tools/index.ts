@@ -155,7 +155,7 @@ export function registerFindingBridgeTools(
     {
       title: 'List Source Projects',
       description:
-        'List projects visible to configured scanner source credentials, such as SonarCloud project keys. Use this when synchronization needs a project_key before reading current platform findings.',
+        'List projects visible to configured scanner source credentials, such as SonarCloud project keys. SonarCloud discovery is organization-scoped; pass organizations[source_id] when the source config lacks an organization. Use this when synchronization needs a project_key before reading current platform findings.',
       inputSchema: ListSourceProjectsInputSchema.shape,
       annotations: { ...READ_ONLY_TOOL_ANNOTATIONS, title: 'List Source Projects', openWorldHint: true },
     },

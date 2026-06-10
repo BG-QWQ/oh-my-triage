@@ -43,6 +43,7 @@ export type DiscoverProjectsResult = {
 /** Options controlling project discovery across configured scanner sources. */
 export type DiscoverProjectsOptions = {
   sourceIds?: string[];
+  organizations?: Record<string, string>;
   maxPages?: number;
 };
 
@@ -116,8 +117,13 @@ export class ProjectDiscoveryService {
 
     try {
       const token = await this.tokenForSource(source);
-      const client = this.createSonarCloudClient(source, token);
-      return await this.discoverSonarCloudProjects(source, client, options.maxPages ?? DEFAULT_MAX_PAGES);
+      const sourceWithOverrides = applyDiscoveryOverrides(source, options);
+      const organization = readStringOption(sourceWithOverrides, 'organization');
+      if (!organization) {
+        throw missingOrganizationError(source.id);
+      }
+      const client = this.createSonarCloudClient(sourceWithOverrides, token);
+      return await this.discoverSonarCloudProjects(sourceWithOverrides, client, options.maxPages ?? DEFAULT_MAX_PAGES);
     } catch (error: unknown) {
       return {
         source_id: source.id,
@@ -220,4 +226,31 @@ function nextStepsForProjectCount(count: number, hasMore: boolean): string[] {
 function readStringOption(source: SourceConfig, key: string): string | undefined {
   const value = source.options[key];
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function applyDiscoveryOverrides(source: SourceConfig, options: DiscoverProjectsOptions): SourceConfig {
+  const organization = options.organizations?.[source.id];
+  if (source.type !== 'sonarcloud' || !organization) {
+    return source;
+  }
+
+  return {
+    ...source,
+    options: {
+      ...source.options,
+      organization,
+    },
+  };
+}
+
+function missingOrganizationError(sourceId: string): FindingBridgeError {
+  return new FindingBridgeError({
+    code: ErrorCodes.CONFIG_INVALID,
+    message: `SonarCloud source ${sourceId} requires organization to list projects.`,
+    nextSteps: [
+      `Call findingbridge_list_source_projects with organizations: { "${sourceId}": "your-org-key" } to list projects without editing configuration.`,
+      'Optionally save the organization in FindingBridge source configuration for future project discovery.',
+    ],
+    retryable: false,
+  });
 }
