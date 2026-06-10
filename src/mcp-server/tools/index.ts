@@ -17,6 +17,7 @@ import { getFindingDetailTool } from './get-finding-detail.js';
 import { listFindingsTool } from './list-findings.js';
 import { prioritizeFindingsTool } from './prioritize-findings.js';
 import { suggestFixTool } from './suggest-fix.js';
+import { summaryTool } from './summary.js';
 
 const READ_ONLY_TOOL_ANNOTATIONS: ToolAnnotations = {
   readOnlyHint: true,
@@ -36,14 +37,39 @@ export function registerFindingBridgeTools(
   context: FindingBridgeMcpContext
 ): void {
   server.registerTool(
+    'findingbridge_summary',
+    {
+      title: 'Summarize Findings',
+      description:
+        'Return global FindingBridge database counts with explicit no-data and scope metadata. If no findings are returned, report that fact and do not invent vulnerabilities.',
+      inputSchema: {},
+      annotations: { ...READ_ONLY_TOOL_ANNOTATIONS, title: 'Summarize Findings' },
+    },
+    () => summaryTool(context)
+  );
+
+  server.registerTool(
     'findingbridge_list_findings',
     {
       title: 'List Findings',
-      description: 'List normalized scanner findings with filters, pagination, and redacted summaries.',
+      description:
+        'List normalized scanner findings with filters, pagination, redacted summaries, and explicit no-data metadata. If findings is empty, report that FindingBridge has no findings and do not invent vulnerabilities.',
       inputSchema: ListFindingsInputSchema.shape,
       annotations: { ...READ_ONLY_TOOL_ANNOTATIONS, title: 'List Findings' },
     },
     (input) => listFindingsTool(context, ListFindingsInputSchema.parse(input))
+  );
+
+  server.registerTool(
+    'findingbridge_get_finding',
+    {
+      title: 'Get Finding',
+      description:
+        'Legacy alias for findingbridge_get_finding_detail. Return one finding with redacted metadata and at most 20 lines of code context.',
+      inputSchema: GetFindingDetailInputSchema.shape,
+      annotations: { ...READ_ONLY_TOOL_ANNOTATIONS, title: 'Get Finding' },
+    },
+    (input) => getFindingDetailTool(context, GetFindingDetailInputSchema.parse(input))
   );
 
   server.registerTool(
