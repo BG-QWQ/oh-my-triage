@@ -32,6 +32,17 @@ describe('redactCodeSnippet', () => {
     expect(result).not.toContain('line 25');
   });
 
+  it('redacts secrets before returning truncated snippets', () => {
+    const lines = Array.from({ length: 25 }, (_, i) => `line ${i + 1}`);
+    lines[4] = 'password: secret123';
+
+    const result = redactCodeSnippet(lines.join('\n'), 20);
+
+    expect(result).toContain('password: ***REDACTED***');
+    expect(result).not.toContain('secret123');
+    expect(result).toContain('... (truncated)');
+  });
+
   it('redacts secrets in snippets', () => {
     const snippet = 'const token = "sk-1234567890abcdef";';
     expect(redactCodeSnippet(snippet)).toContain('***REDACTED***');

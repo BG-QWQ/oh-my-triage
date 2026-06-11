@@ -29,6 +29,12 @@ const SaveSetupRequestSchema = z.object({
 
 type SetupSourceInput = z.infer<typeof SetupSourceSchema>;
 
+type ApiRoute = {
+  path: string;
+  method: string;
+  handler: (req: IncomingMessage, res: ServerResponse) => Promise<void>;
+};
+
 class SetupValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -44,7 +50,7 @@ async function parseBody<T>(req: IncomingMessage): Promise<T> {
     req.on('end', () => {
       try {
         resolve(JSON.parse(body) as T);
-      } catch (err) {
+      } catch {
         reject(new Error('Invalid JSON body'));
       }
     });
@@ -192,7 +198,7 @@ async function handleTestConnection(req: IncomingMessage, res: ServerResponse): 
     let result;
     switch (scanner_type) {
       case 'sonarcloud': {
-        const token = String(config.token || '');
+        const token = String(config.token ?? '');
         const organization = config.organization ? String(config.organization) : undefined;
         
         if (!token) {
@@ -212,16 +218,16 @@ async function handleTestConnection(req: IncomingMessage, res: ServerResponse): 
       }
       case 'github': {
         const adapter = new GitHubAdapter({
-          token: String(config.token || ''),
-          owner: String(config.owner || config.org || ''),
-          repo: String(config.repo || ''),
+          token: String(config.token ?? ''),
+          owner: String(config.owner ?? config.org ?? ''),
+          repo: String(config.repo ?? ''),
         });
         result = await adapter.testConnection();
         break;
       }
       case 'sarif': {
         const adapter = new SarifAdapter({
-          filePath: String(config.file_path || config.path || ''),
+          filePath: String(config.file_path ?? config.path ?? ''),
         });
         result = await adapter.testConnection();
         break;
@@ -373,8 +379,9 @@ async function resolveTokenRef(params: {
     return {};
   }
 
-  if (source.token && source.token.trim()) {
-    const result = await credentialStore.setToken(source.id, source.token.trim(), tokenStorage);
+  const trimmedToken = source.token?.trim();
+  if (trimmedToken) {
+    const result = await credentialStore.setToken(source.id, trimmedToken, tokenStorage);
     if (result.warning) {
       warnings.push(result.warning);
     }
@@ -426,6 +433,21 @@ async function handleHealth(_req: IncomingMessage, res: ServerResponse): Promise
   });
 }
 
+const SETUP_API_ROUTES: ApiRoute[] = [
+  { path: '/api/setup/status', method: 'GET', handler: handleGetStatus },
+  { path: '/api/setup/test-connection', method: 'POST', handler: handleTestConnection },
+  { path: '/api/setup/detect-mcp-clients', method: 'POST', handler: handleDetectMcpClients },
+  { path: '/api/setup/write-config', method: 'POST', handler: handleWriteConfig },
+  { path: '/api/setup/save', method: 'POST', handler: handleSaveSetup },
+  { path: '/api/setup/start-server', method: 'POST', handler: handleStartServer },
+  { path: '/api/setup/health', method: 'GET', handler: handleHealth },
+];
+
+/** Find the setup API route matching one normalized request path and method. */
+function findApiRoute(url: string, method: string): ApiRoute | undefined {
+  return SETUP_API_ROUTES.find((route) => route.path === url && route.method === method);
+}
+
 /** Route API requests */
 export async function handleApiRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = req.url?.split('?')[0] ?? '';
@@ -449,32 +471,9 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
   }
 
   try {
-    if (url === '/api/setup/status' && method === 'GET') {
-      await handleGetStatus(req, res);
-      return true;
-    }
-    if (url === '/api/setup/test-connection' && method === 'POST') {
-      await handleTestConnection(req, res);
-      return true;
-    }
-    if (url === '/api/setup/detect-mcp-clients' && method === 'POST') {
-      await handleDetectMcpClients(req, res);
-      return true;
-    }
-    if (url === '/api/setup/write-config' && method === 'POST') {
-      await handleWriteConfig(req, res);
-      return true;
-    }
-    if (url === '/api/setup/save' && method === 'POST') {
-      await handleSaveSetup(req, res);
-      return true;
-    }
-    if (url === '/api/setup/start-server' && method === 'POST') {
-      await handleStartServer(req, res);
-      return true;
-    }
-    if (url === '/api/setup/health' && method === 'GET') {
-      await handleHealth(req, res);
+    const route = findApiRoute(url, method);
+    if (route) {
+      await route.handler(req, res);
       return true;
     }
 

@@ -22,7 +22,7 @@ export function redactSecrets(text) {
 export function redactCodeSnippet(snippet, maxLines = 20) {
     const lines = snippet.split('\n');
     if (lines.length > maxLines) {
-        return lines.slice(0, maxLines).join('\n') + '\n... (truncated)';
+        return redactSecrets(lines.slice(0, maxLines).join('\n') + '\n... (truncated)');
     }
     return redactSecrets(snippet);
 }

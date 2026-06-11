@@ -40,7 +40,7 @@ export function redactSecrets(text: string): string {
 export function redactCodeSnippet(snippet: string, maxLines = 20): string {
   const lines = snippet.split('\n');
   if (lines.length > maxLines) {
-    return lines.slice(0, maxLines).join('\n') + '\n... (truncated)';
+    return redactSecrets(lines.slice(0, maxLines).join('\n') + '\n... (truncated)');
   }
   return redactSecrets(snippet);
 }
