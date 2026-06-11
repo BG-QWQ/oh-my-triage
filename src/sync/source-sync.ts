@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { randomUUID } from 'crypto';
 import type { AdapterFetchResult, BaseAdapter } from '../adapters/base-adapter.js';
 import { GitHubAdapter } from '../adapters/github/github-adapter.js';
 import { SarifAdapter } from '../adapters/sarif/sarif-adapter.js';
@@ -24,6 +25,8 @@ export type SourceSyncResult = {
   status: SourceSyncStatus;
   findings_found: number;
   findings_imported: number;
+  findings_stale_marked: number;
+  stale_isolation_applied: boolean;
   pages_fetched: number;
   error_message?: string;
   next_steps: string[];
@@ -102,18 +105,20 @@ export class SourceSyncService {
 
   private async syncOneSource(source: SourceConfig, options: SyncSourcesOptions): Promise<SourceSyncResult> {
     const startedAt = new Date().toISOString();
-    const logId = `sync-${source.id}-${Date.now()}`;
+    const logId = `sync-${source.id}-${randomUUID()}`;
     this.syncLogs.create(this.createInitialLog(logId, source.id, startedAt));
 
     try {
-      const adapter = await this.adapterForSource(source, options);
-      const syncResult = await this.fetchAndPersist(source, adapter, options);
+      const adapterContext = await this.adapterForSource(source, options);
+      const syncResult = await this.fetchAndPersist(adapterContext.source, adapterContext.adapter, options, logId);
       this.syncLogs.update(logId, {
         completed_at: new Date().toISOString(),
         status: 'success',
         findings_found: syncResult.findings_found,
         findings_new: syncResult.findings_imported,
         findings_updated: 0,
+        findings_stale_marked: syncResult.findings_stale_marked,
+        stale_isolation_applied: syncResult.stale_isolation_applied,
       });
       return syncResult;
     } catch (error: unknown) {
@@ -129,6 +134,8 @@ export class SourceSyncService {
         status: 'failed',
         findings_found: 0,
         findings_imported: 0,
+        findings_stale_marked: 0,
+        stale_isolation_applied: false,
         pages_fetched: 0,
         error_message: message,
         next_steps: this.nextStepsForError(source, error),
@@ -136,10 +143,16 @@ export class SourceSyncService {
     }
   }
 
-  private async adapterForSource(source: SourceConfig, options: SyncSourcesOptions): Promise<BaseAdapter> {
+  private async adapterForSource(
+    source: SourceConfig,
+    options: SyncSourcesOptions
+  ): Promise<{ source: SourceConfig; adapter: BaseAdapter }> {
     const token = await this.tokenForSource(source);
     const sourceWithOverrides = applySyncOverrides(source, options);
-    return this.createAdapter(sourceWithOverrides, token);
+    return {
+      source: sourceWithOverrides,
+      adapter: await this.createAdapter(sourceWithOverrides, token),
+    };
   }
 
   private async tokenForSource(source: SourceConfig): Promise<string | undefined> {
@@ -218,28 +231,58 @@ export class SourceSyncService {
   private async fetchAndPersist(
     source: SourceConfig,
     adapter: BaseAdapter,
-    options: SyncSourcesOptions
+    options: SyncSourcesOptions,
+    syncRunId: string
   ): Promise<SourceSyncResult> {
     const maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
+    const syncSeenAt = new Date().toISOString();
+    const syncScopeKey = buildSyncScopeKey(source);
+    const activeFingerprints = new Set<string>();
     let cursor: string | undefined;
     let findingsFound = 0;
     let findingsImported = 0;
     let pagesFetched = 0;
+    let fetchComplete = false;
 
     do {
       const result = await adapter.fetchFindings({ cursor });
       const findings = this.parseFindings(result);
       for (const finding of findings) {
-        this.findings.upsert(finding);
+        activeFingerprints.add(finding.fingerprint);
+        this.findings.upsert(finding, {
+          sourceId: source.id,
+          scopeKey: syncScopeKey,
+          syncRunId,
+          seenAt: syncSeenAt,
+          provisional: true,
+        });
       }
       findingsFound += findings.length;
       findingsImported += findings.length;
       pagesFetched += 1;
-      cursor = result.next_cursor;
       if (!result.has_more) {
+        fetchComplete = true;
+        cursor = undefined;
+      } else if (result.next_cursor) {
+        cursor = result.next_cursor;
+      } else {
         cursor = undefined;
       }
     } while (cursor && pagesFetched < maxPages);
+
+    const staleIsolationApplied = fetchComplete;
+    const findingsStaleMarked = staleIsolationApplied
+      ? this.findings.markStaleForSyncScope({
+          sourceId: source.id,
+          scopeKey: syncScopeKey,
+          activeFingerprints: [...activeFingerprints],
+          staleSinceAt: syncSeenAt,
+        })
+      : 0;
+    if (staleIsolationApplied) {
+      this.findings.promoteSyncedFingerprints(source.id, syncScopeKey, [...activeFingerprints]);
+      this.findings.markCurrentSyncScope(source.id, syncScopeKey);
+    }
 
     return {
       source_id: source.id,
@@ -247,8 +290,10 @@ export class SourceSyncService {
       status: 'success',
       findings_found: findingsFound,
       findings_imported: findingsImported,
+      findings_stale_marked: findingsStaleMarked,
+      stale_isolation_applied: staleIsolationApplied,
       pages_fetched: pagesFetched,
-      next_steps: cursor
+      next_steps: !fetchComplete
         ? ['More pages are available. Rerun sync with a higher max_pages value if you need the full scanner result set.']
         : ['Call findingbridge_summary or findingbridge_list_findings to inspect synchronized findings.'],
     };
@@ -267,6 +312,8 @@ export class SourceSyncService {
       findings_found: 0,
       findings_new: 0,
       findings_updated: 0,
+      findings_stale_marked: 0,
+      stale_isolation_applied: false,
     };
   }
 
@@ -280,6 +327,26 @@ export class SourceSyncService {
       'Run findingbridge config test before retrying synchronization.',
     ];
   }
+}
+
+function buildSyncScopeKey(source: SourceConfig): string {
+  const parts: string[] = [`source:${source.id}`, `type:${source.type}`];
+  if (source.api_url) {
+    parts.push(`api:${source.api_url}`);
+  }
+  if (source.project_key) {
+    parts.push(`project:${source.project_key}`);
+  }
+  if (source.path) {
+    parts.push(`path:${source.path}`);
+  }
+  for (const key of ['organization', 'owner', 'repo']) {
+    const value = readStringOption(source, key);
+    if (value) {
+      parts.push(`${key}:${value}`);
+    }
+  }
+  return parts.join('|');
 }
 
 function readStringOption(source: SourceConfig, key: string): string | undefined {
