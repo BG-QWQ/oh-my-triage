@@ -38,6 +38,12 @@ const STEPS = [
 
 type StepId = (typeof STEPS)[number];
 
+const SCANNER_CONFIG_STEPS: Array<{ scanner: ScannerType; step: StepId }> = [
+  { scanner: 'sarif', step: 'sarif-config' },
+  { scanner: 'github', step: 'github-config' },
+  { scanner: 'sonarcloud', step: 'sonarcloud-config' },
+];
+
 /** Wizard state tracked across steps */
 interface WizardState {
   currentStep: StepId;
@@ -132,52 +138,28 @@ function removeLoading(container: HTMLElement): void {
 
 /** Determine which step comes next based on selected scanners */
 function getNextStep(current: StepId): StepId | null {
-  const idx = STEPS.indexOf(current);
-  if (idx === STEPS.length - 1) return null;
-
-  // Skip scanner config steps if scanner not selected
-  if (current === 'scanner-select') {
-    if (state.selectedScanners.has('sarif')) return 'sarif-config';
-    if (state.selectedScanners.has('github')) return 'github-config';
-    if (state.selectedScanners.has('sonarcloud')) return 'sonarcloud-config';
-    return 'security-settings';
-  }
-  if (current === 'sarif-config') {
-    if (state.selectedScanners.has('github')) return 'github-config';
-    if (state.selectedScanners.has('sonarcloud')) return 'sonarcloud-config';
-    return 'security-settings';
-  }
-  if (current === 'github-config') {
-    if (state.selectedScanners.has('sonarcloud')) return 'sonarcloud-config';
-    return 'security-settings';
-  }
-
-  return STEPS[idx + 1];
+  return getAdjacentStep(current, state.selectedScanners, 1);
 }
 
 /** Determine which step comes before */
 function getPrevStep(current: StepId): StepId | null {
-  const idx = STEPS.indexOf(current);
-  if (idx === 0) return null;
+  return getAdjacentStep(current, state.selectedScanners, -1);
+}
 
-  // Skip scanner config steps if scanner not selected
-  if (current === 'security-settings') {
-    if (state.selectedScanners.has('sonarcloud')) return 'sonarcloud-config';
-    if (state.selectedScanners.has('github')) return 'github-config';
-    if (state.selectedScanners.has('sarif')) return 'sarif-config';
-    return 'scanner-select';
+/** Determine the adjacent wizard step after filtering unselected scanner config panels. */
+function getAdjacentStep(current: StepId, selectedScanners: ReadonlySet<ScannerType>, direction: 1 | -1): StepId | null {
+  const visibleSteps = STEPS.filter((step) => isStepVisible(step, selectedScanners));
+  const currentIndex = visibleSteps.indexOf(current);
+  if (currentIndex === -1) {
+    return null;
   }
-  if (current === 'sonarcloud-config') {
-    if (state.selectedScanners.has('github')) return 'github-config';
-    if (state.selectedScanners.has('sarif')) return 'sarif-config';
-    return 'scanner-select';
-  }
-  if (current === 'github-config') {
-    if (state.selectedScanners.has('sarif')) return 'sarif-config';
-    return 'scanner-select';
-  }
+  return visibleSteps[currentIndex + direction] ?? null;
+}
 
-  return STEPS[idx - 1];
+/** Return whether a setup step should be reachable for selected scanners. */
+function isStepVisible(step: StepId, selectedScanners: ReadonlySet<ScannerType>): boolean {
+  const scannerConfig = SCANNER_CONFIG_STEPS.find((entry) => entry.step === step);
+  return scannerConfig ? selectedScanners.has(scannerConfig.scanner) : true;
 }
 
 /** Navigate to a specific step */
@@ -308,41 +290,8 @@ function initGithubConfigStep(): void {
 
   // Test connection
   const testBtn = $<HTMLButtonElement>('#test-github-connection');
-  testBtn.addEventListener('click', async () => {
-    if (!state.githubToken) {
-      showStatus(statusContainer, 'error', 'Please enter a GitHub token first.');
-      return;
-    }
-
-    showLoading(statusContainer, 'Testing GitHub connection...');
-    testBtn.disabled = true;
-
-    try {
-      const result = await testConnection('github', {
-        token: state.githubToken,
-      });
-      removeLoading(statusContainer);
-
-      if (result.valid) {
-        state.connectionResults.set('github', result);
-        showStatus(statusContainer, 'success', `Connected! Found ${result.projects_found ?? 0} accessible repositories.`);
-        // Populate org/repo selects if data available
-        if (result.orgs_found && result.orgs_found > 0) {
-          orgSelect.innerHTML = '<option value="">Select organization</option>';
-          // Placeholder — real data comes from API
-        }
-      } else {
-        showStatus(statusContainer, 'error', result.reason ?? 'Connection failed. Check your token and permissions.');
-        if (result.suggestion) {
-          showStatus(statusContainer, 'warning', result.suggestion);
-        }
-      }
-    } catch (err) {
-      removeLoading(statusContainer);
-      showStatus(statusContainer, 'error', `Connection test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      testBtn.disabled = false;
-    }
+  testBtn.addEventListener('click', () => {
+    void handleGithubConnectionTest(testBtn, statusContainer);
   });
 
   orgSelect.addEventListener('change', () => {
@@ -352,6 +301,39 @@ function initGithubConfigStep(): void {
   repoSelect.addEventListener('change', () => {
     state.githubRepo = repoSelect.value;
   });
+}
+
+/** Test GitHub connectivity and update the wizard state. */
+async function handleGithubConnectionTest(testBtn: HTMLButtonElement, statusContainer: HTMLElement): Promise<void> {
+  if (!state.githubToken) {
+    showStatus(statusContainer, 'error', 'Please enter a GitHub token first.');
+    return;
+  }
+
+  showLoading(statusContainer, 'Testing GitHub connection...');
+  testBtn.disabled = true;
+
+  try {
+    const result = await testConnection('github', {
+      token: state.githubToken,
+    });
+    removeLoading(statusContainer);
+
+    if (result.valid) {
+      state.connectionResults.set('github', result);
+      showStatus(statusContainer, 'success', `Connected! Found ${result.projects_found ?? 0} accessible repositories.`);
+    } else {
+      showStatus(statusContainer, 'error', result.reason ?? 'Connection failed. Check your token and permissions.');
+      if (result.suggestion) {
+        showStatus(statusContainer, 'warning', result.suggestion);
+      }
+    }
+  } catch (err) {
+    removeLoading(statusContainer);
+    showStatus(statusContainer, 'error', `Connection test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  } finally {
+    testBtn.disabled = false;
+  }
 }
 
 // ── Step: SonarCloud config ──────────────────────────────────────────
@@ -383,7 +365,17 @@ function initSonarcloudConfigStep(): void {
 
   // Test connection
   const testBtn = $<HTMLButtonElement>('#test-sonarcloud-connection');
-  testBtn.addEventListener('click', async () => {
+  testBtn.addEventListener('click', () => {
+    void handleSonarcloudConnectionTest(testBtn, statusContainer);
+  });
+
+  projectSelect.addEventListener('change', () => {
+    state.sonarcloudProject = projectSelect.value;
+  });
+}
+
+/** Test SonarCloud connectivity and update the wizard state. */
+async function handleSonarcloudConnectionTest(testBtn: HTMLButtonElement, statusContainer: HTMLElement): Promise<void> {
     if (!state.sonarcloudToken) {
       showStatus(statusContainer, 'error', 'Please enter a SonarCloud token first.');
       return;
@@ -419,11 +411,6 @@ function initSonarcloudConfigStep(): void {
     } finally {
       testBtn.disabled = false;
     }
-  });
-
-  projectSelect.addEventListener('change', () => {
-    state.sonarcloudProject = projectSelect.value;
-  });
 }
 
 // ── Step: Security settings ──────────────────────────────────────────
@@ -574,7 +561,13 @@ function initMcpConfigStep(): void {
 
   // Write config button
   const writeBtn = $<HTMLButtonElement>('#write-mcp-config');
-  writeBtn.addEventListener('click', async () => {
+  writeBtn.addEventListener('click', () => {
+    void handleWriteMcpConfig(writeBtn, clientList, statusContainer);
+  });
+}
+
+/** Write the selected MCP client configuration. */
+async function handleWriteMcpConfig(writeBtn: HTMLButtonElement, clientList: HTMLElement, statusContainer: HTMLElement): Promise<void> {
     const selectedClient = clientList.querySelector<HTMLInputElement>('input[name="mcp-client"]:checked');
     if (!selectedClient) {
       showStatus(statusContainer, 'error', 'Please select an MCP client first.');
@@ -605,7 +598,6 @@ function initMcpConfigStep(): void {
     } finally {
       writeBtn.disabled = false;
     }
-  });
 }
 
 /** Build MCP server config for a specific client */
@@ -717,7 +709,13 @@ function initNavigation(): void {
     if (prev) goToStep(prev);
   });
 
-  nextBtn.addEventListener('click', async () => {
+  nextBtn.addEventListener('click', () => {
+    void handleNextNavigation(nextBtn);
+  });
+}
+
+/** Advance the wizard or prepare the server command from the summary step. */
+async function handleNextNavigation(nextBtn: HTMLButtonElement): Promise<void> {
     if (state.currentStep === 'summary') {
       const statusContainer = $<HTMLElement>('#summary-status');
       showLoading(statusContainer, 'Preparing MCP server command...');
@@ -744,7 +742,6 @@ function initNavigation(): void {
     }
 
     goToStep(next);
-  });
 }
 
 // ── Initialize ───────────────────────────────────────────────────────
