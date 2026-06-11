@@ -91,9 +91,9 @@ export function findingDataAvailability(totalFindings: number): FindingBridgeDat
 
   return {
     has_findings: false,
-    no_data_reason: 'No findings are available in the configured FindingBridge database for this request.',
+    no_data_reason: 'No stored findings matched this FindingBridge database request.',
     agent_instruction:
-      'Report that FindingBridge has no findings for this scope. If the user asked for current or latest scanner platform results, call findingbridge_sync_sources before concluding there are no findings. Do not invent vulnerabilities, file paths, severities, or remediation steps.',
+      'Report that FindingBridge returned no findings for this request. If filters were provided, say no stored findings matched those filters. If the user asked for current or latest scanner platform results, call findingbridge_sync_sources before concluding the scanner platform has no findings. Do not invent vulnerabilities, file paths, severities, or remediation steps.',
   };
 }
 

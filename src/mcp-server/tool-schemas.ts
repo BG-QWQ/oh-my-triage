@@ -15,8 +15,16 @@ export const ListFindingsInputSchema = z.object({
   severity: z.array(UnifiedSeverity).optional(),
   tool: z.array(z.string().min(1)).optional(),
   status: z.array(FindingStatus).optional(),
-  rule_id: z.string().min(1).optional(),
-  file_path: z.string().min(1).optional(),
+  rule_id: z
+    .string()
+    .min(1)
+    .describe('Exact scanner rule ID to match, such as js/sql-injection or python:S3776. This is not a prefix search or project key.')
+    .optional(),
+  file_path: z
+    .string()
+    .min(1)
+    .describe('Normalized finding location path to match against stored findings, such as src/db.ts or ensemble.py. This is not a scanner project or repository selector.')
+    .optional(),
   limit: z.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
   offset: z.number().int().min(0).default(0),
   sort_by: z.enum(['severity', 'date', 'priority_score']).default('priority_score'),

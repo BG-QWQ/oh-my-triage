@@ -5,10 +5,12 @@ import { toolException, toolSuccess } from '../tool-result.js';
 import { findingDataAvailability, findingProvenanceWarnings, globalFindingScope, summarizeFinding } from './shared.js';
 
 /**
- * List normalized findings with scanner-neutral filters.
+ * List normalized findings with scanner-neutral finding filters.
  *
  * The response intentionally contains summaries rather than raw scanner data so
  * clients can page through large result sets without leaking excessive context.
+ * `rule_id` is exact, and `file_path` targets stored finding locations rather
+ * than scanner project keys or repository names.
  */
 export function listFindingsTool(
   context: FindingBridgeMcpContext,

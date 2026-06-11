@@ -65,7 +65,7 @@ export function registerFindingBridgeTools(
     {
       title: 'List Findings',
       description:
-        'List normalized scanner findings with filters, pagination, redacted summaries, and explicit no-data metadata. For current or latest scanner platform results, call findingbridge_sync_sources before this tool. If findings is empty, report that FindingBridge has no findings and do not invent vulnerabilities.',
+        'List normalized scanner findings with filters, pagination, redacted summaries, and explicit no-data metadata. rule_id is an exact scanner rule ID match; file_path matches normalized stored finding locations, not scanner project keys or repository names. For SonarCloud project keys, use findingbridge_list_source_projects and findingbridge_sync_sources project_keys[source_id]. For current or latest scanner platform results, call findingbridge_sync_sources before this tool. If findings is empty, report that no stored findings matched this request or filters unless a broader unfiltered call or sync proves otherwise; do not invent vulnerabilities.',
       inputSchema: ListFindingsInputSchema.shape,
       annotations: { ...READ_ONLY_TOOL_ANNOTATIONS, title: 'List Findings' },
     },

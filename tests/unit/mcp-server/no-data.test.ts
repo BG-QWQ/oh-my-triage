@@ -70,8 +70,8 @@ describe('MCP no-data responses', () => {
     expect(data.has_findings).toBe(false);
     expect(data.data_availability).toMatchObject({
       has_findings: false,
-      no_data_reason: 'No findings are available in the configured FindingBridge database for this request.',
-      agent_instruction: expect.stringContaining('call findingbridge_sync_sources before concluding there are no findings'),
+      no_data_reason: 'No stored findings matched this FindingBridge database request.',
+      agent_instruction: expect.stringContaining('call findingbridge_sync_sources before concluding the scanner platform has no findings'),
     });
     expect(data.scope).toMatchObject({
       type: 'global_database',
@@ -89,12 +89,49 @@ describe('MCP no-data responses', () => {
     expect(data.has_findings).toBe(false);
     expect(data.data_availability).toMatchObject({
       has_findings: false,
-      agent_instruction: expect.stringContaining('call findingbridge_sync_sources before concluding there are no findings'),
+      agent_instruction: expect.stringContaining('call findingbridge_sync_sources before concluding the scanner platform has no findings'),
     });
     expect(data.scope).toMatchObject({
       type: 'global_database',
       project_scope_supported: false,
       current_project_matched: false,
+    });
+  });
+
+  it('describes empty filtered list_findings responses as no matches for those filters', () => {
+    context.findings.upsert(createCodeQlFinding());
+
+    const ruleData = unwrapData(
+      listFindingsTool(context, {
+        rule_id: 'js/other-rule',
+        limit: 20,
+        offset: 0,
+        sort_by: 'priority_score',
+      })
+    );
+    const pathData = unwrapData(
+      listFindingsTool(context, {
+        file_path: 'src/missing.ts',
+        limit: 20,
+        offset: 0,
+        sort_by: 'priority_score',
+      })
+    );
+
+    expect(ruleData.findings).toEqual([]);
+    expect(ruleData.total).toBe(0);
+    expect(ruleData.filters).toMatchObject({ rule_id: 'js/other-rule', file_path: null });
+    expect(ruleData.data_availability).toMatchObject({
+      has_findings: false,
+      agent_instruction: expect.stringContaining('no stored findings matched those filters'),
+    });
+
+    expect(pathData.findings).toEqual([]);
+    expect(pathData.total).toBe(0);
+    expect(pathData.filters).toMatchObject({ rule_id: null, file_path: 'src/missing.ts' });
+    expect(pathData.data_availability).toMatchObject({
+      has_findings: false,
+      agent_instruction: expect.stringContaining('no stored findings matched those filters'),
     });
   });
 
