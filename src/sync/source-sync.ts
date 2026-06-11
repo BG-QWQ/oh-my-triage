@@ -1,5 +1,7 @@
 import type Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import type { AdapterFetchResult, BaseAdapter } from '../adapters/base-adapter.js';
 import { GitHubAdapter } from '../adapters/github/github-adapter.js';
 import { SarifAdapter } from '../adapters/sarif/sarif-adapter.js';
@@ -14,6 +16,12 @@ import { SyncRepository } from '../database/repositories/sync-repo.js';
 import { redactSecrets } from '../utils/redaction.js';
 
 const DEFAULT_MAX_PAGES = 20;
+const execFileAsync = promisify(execFile);
+
+type GitHubRepositoryIdentity = {
+  owner: string;
+  repo: string;
+};
 
 /** Status for one configured source synchronization attempt. */
 export type SourceSyncStatus = 'success' | 'failed' | 'skipped';
@@ -48,6 +56,7 @@ export type SyncSourcesOptions = {
   sourceIds?: string[];
   projectKeys?: Record<string, string>;
   maxPages?: number;
+  allSources?: boolean;
 };
 
 /** Dependencies for synchronizing configured scanner sources into FindingBridge storage. */
@@ -57,6 +66,7 @@ export type SourceSyncServiceOptions = {
   databasePath?: string;
   credentialStore?: CredentialStore;
   createAdapter?: (source: SourceConfig, token?: string) => Promise<BaseAdapter>;
+  detectCurrentGitHubRepository?: () => Promise<GitHubRepositoryIdentity | undefined>;
 };
 
 /** Synchronize configured scanner sources into the local FindingBridge database. */
@@ -65,17 +75,19 @@ export class SourceSyncService {
   private readonly syncLogs: SyncRepository;
   private readonly credentialStore: CredentialStore;
   private readonly createAdapter: (source: SourceConfig, token?: string) => Promise<BaseAdapter>;
+  private readonly detectCurrentGitHubRepository: () => Promise<GitHubRepositoryIdentity | undefined>;
 
   constructor(private readonly options: SourceSyncServiceOptions) {
     this.findings = new FindingRepository(options.db);
     this.syncLogs = new SyncRepository(options.db);
     this.credentialStore = options.credentialStore ?? new CredentialStore();
     this.createAdapter = options.createAdapter ?? ((source, token) => this.createConfiguredAdapter(source, token));
+    this.detectCurrentGitHubRepository = options.detectCurrentGitHubRepository ?? detectCurrentGitHubRepository;
   }
 
   /** Sync enabled configured sources, optionally narrowed to specific source IDs. */
   async syncSources(options: SyncSourcesOptions = {}): Promise<SyncSourcesResult> {
-    const selected = this.selectSources(options.sourceIds);
+    const selected = await this.selectSources(options);
     const results: SourceSyncResult[] = [];
 
     for (const source of selected) {
@@ -93,10 +105,34 @@ export class SourceSyncService {
     };
   }
 
-  private selectSources(sourceIds?: string[]): SourceConfig[] {
+  private async selectSources(options: SyncSourcesOptions): Promise<SourceConfig[]> {
     const enabled = this.options.config.sources.filter((source) => source.enabled);
+    const sourceIds = options.sourceIds;
     if (!sourceIds?.length) {
-      return enabled;
+      if (options.allSources) {
+        return enabled;
+      }
+
+      if (enabled.length <= 1) {
+        return enabled;
+      }
+
+      const currentRepository = await this.detectCurrentGitHubRepository();
+      const matchingSources = currentRepository ? selectCurrentGitHubRepositorySources(enabled, currentRepository) : [];
+      if (matchingSources.length > 0) {
+        return matchingSources;
+      }
+
+      throw new FindingBridgeError({
+        code: ErrorCodes.CONFIG_INVALID,
+        message: 'Multiple scanner sources are configured, and FindingBridge could not infer a single current repository source to synchronize.',
+        nextSteps: [
+          'Pass source_ids to findingbridge_sync_sources or repeat --source with the source IDs you want to sync.',
+          'Pass all_sources: true or use findingbridge sync --all when you intentionally want to synchronize every configured source.',
+          'Run sync from a GitHub repository whose origin remote matches one configured GitHub source.',
+        ],
+        retryable: false,
+      });
     }
 
     const requested = new Set(sourceIds);
@@ -327,6 +363,35 @@ export class SourceSyncService {
       'Run findingbridge config test before retrying synchronization.',
     ];
   }
+}
+
+function selectCurrentGitHubRepositorySources(sources: SourceConfig[], repository: GitHubRepositoryIdentity): SourceConfig[] {
+  return sources.filter((source) => {
+    if (source.type !== 'github') {
+      return false;
+    }
+
+    return readStringOption(source, 'owner')?.toLowerCase() === repository.owner.toLowerCase()
+      && readStringOption(source, 'repo')?.toLowerCase() === repository.repo.toLowerCase();
+  });
+}
+
+async function detectCurrentGitHubRepository(): Promise<GitHubRepositoryIdentity | undefined> {
+  try {
+    const { stdout } = await execFileAsync('git', ['config', '--get', 'remote.origin.url']);
+    return parseGitHubRemoteUrl(stdout.trim());
+  } catch {
+    return undefined;
+  }
+}
+
+function parseGitHubRemoteUrl(remoteUrl: string): GitHubRepositoryIdentity | undefined {
+  const match = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/i.exec(remoteUrl.trim());
+  if (!match?.[1] || !match[2]) {
+    return undefined;
+  }
+
+  return { owner: match[1], repo: match[2] };
 }
 
 function buildSyncScopeKey(source: SourceConfig): string {

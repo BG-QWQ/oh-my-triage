@@ -36,7 +36,7 @@ describe('SourceSyncService', () => {
       createAdapter: async () => adapter,
     });
 
-    const result = await service.syncSources();
+    const result = await service.syncSources({ allSources: true });
 
     expect(result).toMatchObject({
       sources_total: 1,
@@ -75,7 +75,7 @@ describe('SourceSyncService', () => {
       createAdapter: async () => new StaticAdapter([firstFinding, secondFinding]),
     });
 
-    await service.syncSources();
+    await service.syncSources({ allSources: true });
     const secondService = new SourceSyncService({
       db,
       config,
@@ -115,7 +115,7 @@ describe('SourceSyncService', () => {
       createAdapter: async () => new StaticAdapter([syncedFinding]),
     });
 
-    const result = await service.syncSources();
+    const result = await service.syncSources({ allSources: true });
 
     expect(result.results[0]).toMatchObject({ stale_isolation_applied: true });
     expect(repo.list({}).findings.map((finding) => finding.id)).toEqual(['fb-sync-test-001']);
@@ -148,7 +148,7 @@ describe('SourceSyncService', () => {
       createAdapter: async (source) => new StaticAdapter(source.id === 'first-sarif' ? [firstFinding] : [secondFinding]),
     });
 
-    await service.syncSources();
+    await service.syncSources({ allSources: true });
 
     expect(new FindingRepository(db).list({}).findings.map((finding) => finding.id).sort((a, b) => a.localeCompare(b))).toEqual([
       'fb-first-001',
@@ -382,7 +382,7 @@ describe('SourceSyncService', () => {
     ]);
     const service = new SourceSyncService({ db, config, databasePath: ':memory:' });
 
-    const result = await service.syncSources();
+    const result = await service.syncSources({ allSources: true });
 
     expect(result.sources_failed).toBe(1);
     expect(result.results[0]).toMatchObject({
@@ -453,7 +453,7 @@ describe('SourceSyncService', () => {
       },
     });
 
-    const result = await service.syncSources();
+    const result = await service.syncSources({ allSources: true });
 
     expect(result).toMatchObject({ sources_synced: 2, sources_failed: 0 });
     expect(observedSources.map((source) => source.options)).toEqual([
@@ -461,6 +461,62 @@ describe('SourceSyncService', () => {
       { owner: 'acme', repo: 'web' },
     ]);
     expect(new FindingRepository(db).list({}).total).toBe(2);
+  });
+
+  it('defaults multi-source GitHub sync to the current repository source', async () => {
+    const config = createConfig(gitHubSources());
+    const observedSources: SourceConfig[] = [];
+    const service = new SourceSyncService({
+      db,
+      config,
+      databasePath: ':memory:',
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
+      createAdapter: async (source) => {
+        observedSources.push(source);
+        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
+      },
+    });
+
+    const result = await service.syncSources();
+
+    expect(result).toMatchObject({ sources_total: 1, sources_synced: 1 });
+    expect(observedSources.map((source) => source.id)).toEqual(['github-code-scanning-acme-web']);
+  });
+
+  it('syncs all configured sources only when allSources is explicit', async () => {
+    const config = createConfig(gitHubSources());
+    const observedSources: SourceConfig[] = [];
+    const service = new SourceSyncService({
+      db,
+      config,
+      databasePath: ':memory:',
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
+      createAdapter: async (source) => {
+        observedSources.push(source);
+        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
+      },
+    });
+
+    const result = await service.syncSources({ allSources: true });
+
+    expect(result).toMatchObject({ sources_total: 2, sources_synced: 2 });
+    expect(observedSources.map((source) => source.id)).toEqual(['github-code-scanning', 'github-code-scanning-acme-web']);
+  });
+
+  it('refuses broad multi-source sync when no current repository source matches', async () => {
+    const config = createConfig(gitHubSources());
+    const service = new SourceSyncService({
+      db,
+      config,
+      databasePath: ':memory:',
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'mobile' }),
+      createAdapter: async () => new StaticAdapter([createFinding()]),
+    });
+
+    await expect(service.syncSources()).rejects.toThrow('could not infer a single current repository source');
   });
 });
 
@@ -473,6 +529,25 @@ function createConfig(sources: SourceConfig[]): Config {
     sources,
     database_path: ':memory:',
   };
+}
+
+function gitHubSources(): SourceConfig[] {
+  return [
+    {
+      id: 'github-code-scanning',
+      type: 'github',
+      enabled: true,
+      token_ref: 'github-code-scanning',
+      options: { owner: 'acme', repo: 'api' },
+    },
+    {
+      id: 'github-code-scanning-acme-web',
+      type: 'github',
+      enabled: true,
+      token_ref: 'github-code-scanning',
+      options: { owner: 'acme', repo: 'web' },
+    },
+  ];
 }
 
 class StaticAdapter implements BaseAdapter {
