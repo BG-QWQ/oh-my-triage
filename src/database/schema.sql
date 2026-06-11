@@ -1,4 +1,4 @@
--- FindingBridge SQLite Schema (v1)
+-- FindingBridge SQLite Schema (v2)
 
 -- Normalized findings table
 CREATE TABLE IF NOT EXISTS findings (
@@ -39,6 +39,13 @@ CREATE TABLE IF NOT EXISTS findings (
   dismissed_at TEXT,
   dismissed_reason TEXT,
   raw_data TEXT NOT NULL,
+  sync_source_id TEXT,
+  sync_scope_key TEXT,
+  sync_run_id TEXT,
+  sync_seen_at TEXT,
+  is_stale INTEGER NOT NULL DEFAULT 0,
+  is_current_scope INTEGER NOT NULL DEFAULT 1,
+  stale_since_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -81,6 +88,8 @@ CREATE TABLE IF NOT EXISTS sync_logs (
   findings_found INTEGER NOT NULL DEFAULT 0,
   findings_new INTEGER NOT NULL DEFAULT 0,
   findings_updated INTEGER NOT NULL DEFAULT 0,
+  findings_stale_marked INTEGER NOT NULL DEFAULT 0,
+  stale_isolation_applied INTEGER NOT NULL DEFAULT 0,
   error_message TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

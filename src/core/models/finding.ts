@@ -78,6 +78,15 @@ export const Finding = z.object({
   dismissed_at: z.string().datetime().optional(),
   dismissed_reason: z.string().optional(),
 
+  // Sync freshness
+  sync_source_id: z.string().optional(),
+  sync_scope_key: z.string().optional(),
+  sync_run_id: z.string().optional(),
+  sync_seen_at: z.string().datetime().optional(),
+  is_stale: z.boolean().optional(),
+  is_current_scope: z.boolean().optional(),
+  stale_since_at: z.string().datetime().optional(),
+
   // Raw scanner data
   raw_data: z.record(z.string(), z.unknown()).describe('Original scanner metadata preserved verbatim'),
 });

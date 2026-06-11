@@ -10,6 +10,8 @@ export const SyncLog = z.object({
   findings_found: z.number().int().min(0),
   findings_new: z.number().int().min(0),
   findings_updated: z.number().int().min(0),
+  findings_stale_marked: z.number().int().min(0).optional(),
+  stale_isolation_applied: z.boolean().optional(),
   error_message: z.string().optional(),
 });
 

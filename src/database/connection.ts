@@ -17,8 +17,62 @@ export function createConnection(dbPath: string): Database.Database {
   const schemaPath = join(__dirname, '..', 'database', 'schema.sql');
   const schemaSql = readFileSync(schemaPath, 'utf-8');
   db.exec(schemaSql);
+  migrateSyncFreshness(db);
 
   return db;
+}
+
+function migrateSyncFreshness(db: Database.Database): void {
+  const columns = new Set(
+    (
+      db.prepare('PRAGMA table_info(findings)').all() as Array<{
+        name: string;
+      }>
+    ).map((column) => column.name)
+  );
+  const additions: Array<{ name: string; definition: string }> = [
+    { name: 'sync_source_id', definition: 'sync_source_id TEXT' },
+    { name: 'sync_scope_key', definition: 'sync_scope_key TEXT' },
+    { name: 'sync_run_id', definition: 'sync_run_id TEXT' },
+    { name: 'sync_seen_at', definition: 'sync_seen_at TEXT' },
+    { name: 'is_stale', definition: 'is_stale INTEGER NOT NULL DEFAULT 0' },
+    { name: 'is_current_scope', definition: 'is_current_scope INTEGER NOT NULL DEFAULT 1' },
+    { name: 'stale_since_at', definition: 'stale_since_at TEXT' },
+  ];
+
+  for (const addition of additions) {
+    if (!columns.has(addition.name)) {
+      db.exec(`ALTER TABLE findings ADD COLUMN ${addition.definition}`);
+    }
+  }
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_findings_is_stale ON findings(is_stale);
+    CREATE INDEX IF NOT EXISTS idx_findings_current_scope ON findings(is_current_scope, is_stale);
+    CREATE INDEX IF NOT EXISTS idx_findings_sync_scope ON findings(sync_scope_key, is_current_scope, is_stale);
+    INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (2, 'finding_sync_freshness');
+  `);
+  migrateSyncLogFreshness(db);
+}
+
+function migrateSyncLogFreshness(db: Database.Database): void {
+  const columns = new Set(
+    (
+      db.prepare('PRAGMA table_info(sync_logs)').all() as Array<{
+        name: string;
+      }>
+    ).map((column) => column.name)
+  );
+  const additions: Array<{ name: string; definition: string }> = [
+    { name: 'findings_stale_marked', definition: 'findings_stale_marked INTEGER NOT NULL DEFAULT 0' },
+    { name: 'stale_isolation_applied', definition: 'stale_isolation_applied INTEGER NOT NULL DEFAULT 0' },
+  ];
+
+  for (const addition of additions) {
+    if (!columns.has(addition.name)) {
+      db.exec(`ALTER TABLE sync_logs ADD COLUMN ${addition.definition}`);
+    }
+  }
 }
 
 /** Get current schema version from the database */

@@ -8,8 +8,8 @@ export class SyncRepository {
   /** Create a new sync log entry */
   create(log: SyncLog): void {
     const stmt = this.db.prepare(`
-      INSERT INTO sync_logs (id, source, started_at, completed_at, status, findings_found, findings_new, findings_updated, error_message)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sync_logs (id, source, started_at, completed_at, status, findings_found, findings_new, findings_updated, findings_stale_marked, stale_isolation_applied, error_message)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       log.id,
@@ -20,6 +20,8 @@ export class SyncRepository {
       log.findings_found,
       log.findings_new,
       log.findings_updated,
+      log.findings_stale_marked ?? 0,
+      log.stale_isolation_applied ? 1 : 0,
       log.error_message ?? null
     );
   }
@@ -48,6 +50,14 @@ export class SyncRepository {
     if (updates.findings_updated !== undefined) {
       fields.push('findings_updated = ?');
       values.push(updates.findings_updated);
+    }
+    if (updates.findings_stale_marked !== undefined) {
+      fields.push('findings_stale_marked = ?');
+      values.push(updates.findings_stale_marked);
+    }
+    if (updates.stale_isolation_applied !== undefined) {
+      fields.push('stale_isolation_applied = ?');
+      values.push(updates.stale_isolation_applied ? 1 : 0);
     }
     if (updates.error_message !== undefined) {
       fields.push('error_message = ?');
@@ -87,6 +97,8 @@ export class SyncRepository {
       findings_found: row.findings_found as number,
       findings_new: row.findings_new as number,
       findings_updated: row.findings_updated as number,
+      findings_stale_marked: row.findings_stale_marked as number,
+      stale_isolation_applied: Boolean(row.stale_isolation_applied),
       error_message: row.error_message as string | undefined,
     };
   }

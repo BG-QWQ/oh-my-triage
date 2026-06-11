@@ -1,12 +1,29 @@
 import Database from 'better-sqlite3';
 import type { Finding, FixSuggestion } from '../../core/models/finding.js';
 
+/** Metadata proving a finding was observed during a specific source sync run. */
+export type FindingSyncMetadata = {
+  sourceId: string;
+  scopeKey: string;
+  syncRunId: string;
+  seenAt: string;
+  provisional?: boolean;
+};
+
+/** Parameters for marking missing same-scope findings stale after a complete sync. */
+export type MarkStaleForSyncScopeParams = {
+  sourceId: string;
+  scopeKey: string;
+  activeFingerprints: string[];
+  staleSinceAt: string;
+};
+
 /** Repository for findings CRUD and query operations */
 export class FindingRepository {
   constructor(private readonly db: Database.Database) {}
 
-  /** Insert or update a finding (upsert by fingerprint) */
-  upsert(finding: Finding): void {
+  /** Insert or update a finding by fingerprint and optionally record sync freshness metadata. */
+  upsert(finding: Finding, syncMetadata?: FindingSyncMetadata): void {
     const stmt = this.db.prepare(`
       INSERT INTO findings (
         id, tool, tool_version, rule_id, rule_name, rule_description, rule_help_url,
@@ -15,7 +32,8 @@ export class FindingRepository {
         end_line, end_column, code_snippet, status, fingerprint, duplicate_group_id,
         is_duplicate, priority_score, priority_reason, fix_description, fix_code_example,
         fix_effort_estimate, fix_breaking_risk, first_seen_at, last_seen_at,
-        dismissed_at, dismissed_reason, raw_data
+        dismissed_at, dismissed_reason, raw_data, sync_source_id, sync_scope_key,
+        sync_run_id, sync_seen_at, is_stale, is_current_scope, stale_since_at
       ) VALUES (
         @id, @tool, @tool_version, @rule_id, @rule_name, @rule_description, @rule_help_url,
         @original_id, @original_url, @title, @message, @severity, @raw_severity,
@@ -23,7 +41,8 @@ export class FindingRepository {
         @end_line, @end_column, @code_snippet, @status, @fingerprint, @duplicate_group_id,
         @is_duplicate, @priority_score, @priority_reason, @fix_description, @fix_code_example,
         @fix_effort_estimate, @fix_breaking_risk, @first_seen_at, @last_seen_at,
-        @dismissed_at, @dismissed_reason, @raw_data
+        @dismissed_at, @dismissed_reason, @raw_data, @sync_source_id, @sync_scope_key,
+        @sync_run_id, @sync_seen_at, @is_stale_row, @is_current_scope_row, @stale_since_at
       )
       ON CONFLICT(fingerprint) DO UPDATE SET
         title = excluded.title,
@@ -42,6 +61,13 @@ export class FindingRepository {
         dismissed_at = excluded.dismissed_at,
         dismissed_reason = excluded.dismissed_reason,
         raw_data = excluded.raw_data,
+        sync_source_id = excluded.sync_source_id,
+        sync_scope_key = excluded.sync_scope_key,
+        sync_run_id = excluded.sync_run_id,
+        sync_seen_at = excluded.sync_seen_at,
+        is_stale = CASE WHEN @provisional = 1 THEN findings.is_stale ELSE excluded.is_stale END,
+        is_current_scope = CASE WHEN @provisional = 1 THEN findings.is_current_scope ELSE excluded.is_current_scope END,
+        stale_since_at = CASE WHEN @provisional = 1 THEN findings.stale_since_at ELSE excluded.stale_since_at END,
         updated_at = datetime('now')
     `);
 
@@ -83,7 +109,93 @@ export class FindingRepository {
       dismissed_at: finding.dismissed_at ?? null,
       dismissed_reason: finding.dismissed_reason ?? null,
       raw_data: JSON.stringify(finding.raw_data),
+      sync_source_id: syncMetadata?.sourceId ?? finding.sync_source_id ?? null,
+      sync_scope_key: syncMetadata?.scopeKey ?? finding.sync_scope_key ?? null,
+      sync_run_id: syncMetadata?.syncRunId ?? finding.sync_run_id ?? null,
+      sync_seen_at: syncMetadata?.seenAt ?? finding.sync_seen_at ?? null,
+      is_stale_row: 0,
+      is_current_scope_row: syncMetadata?.provisional ? 0 : 1,
+      stale_since_at: null,
+      provisional: syncMetadata?.provisional ? 1 : 0,
     });
+  }
+
+  /** Promote findings observed in a complete sync to active current-scope rows. */
+  promoteSyncedFingerprints(sourceId: string, scopeKey: string, activeFingerprints: string[]): number {
+    const transaction = this.db.transaction(() => {
+      this.db.exec('CREATE TEMP TABLE IF NOT EXISTS temp_active_fingerprints (fingerprint TEXT PRIMARY KEY)');
+      this.db.exec('DELETE FROM temp_active_fingerprints');
+      const insert = this.db.prepare('INSERT OR IGNORE INTO temp_active_fingerprints (fingerprint) VALUES (?)');
+      for (const fingerprint of activeFingerprints) {
+        insert.run(fingerprint);
+      }
+
+      const result = this.db.prepare(`
+        UPDATE findings
+        SET is_stale = 0,
+            is_current_scope = 1,
+            stale_since_at = NULL,
+            updated_at = datetime('now')
+        WHERE sync_source_id = ?
+          AND sync_scope_key = ?
+          AND EXISTS (
+            SELECT 1 FROM temp_active_fingerprints active
+            WHERE active.fingerprint = findings.fingerprint
+          )
+      `).run(sourceId, scopeKey);
+      this.db.exec('DELETE FROM temp_active_fingerprints');
+      return result.changes;
+    });
+
+    return transaction();
+  }
+
+  /** Mark findings absent from a complete same-scope sync as stale without deleting history. */
+  markStaleForSyncScope(params: MarkStaleForSyncScopeParams): number {
+    const transaction = this.db.transaction(() => {
+      this.db.exec('CREATE TEMP TABLE IF NOT EXISTS temp_active_fingerprints (fingerprint TEXT PRIMARY KEY)');
+      this.db.exec('DELETE FROM temp_active_fingerprints');
+      const insert = this.db.prepare('INSERT OR IGNORE INTO temp_active_fingerprints (fingerprint) VALUES (?)');
+      for (const fingerprint of params.activeFingerprints) {
+        insert.run(fingerprint);
+      }
+
+      const result = this.db.prepare(`
+        UPDATE findings
+        SET is_stale = 1,
+            stale_since_at = ?,
+            updated_at = datetime('now')
+        WHERE is_stale = 0
+          AND sync_source_id = ?
+          AND sync_scope_key = ?
+          AND NOT EXISTS (
+            SELECT 1 FROM temp_active_fingerprints active
+            WHERE active.fingerprint = findings.fingerprint
+          )
+      `).run(params.staleSinceAt, params.sourceId, params.scopeKey);
+      this.db.exec('DELETE FROM temp_active_fingerprints');
+      return result.changes;
+    });
+
+    return transaction();
+  }
+
+  /** Make one successful sync scope the default active context without deleting historical rows. */
+  markCurrentSyncScope(sourceId: string, scopeKey: string): number {
+    const result = this.db.prepare(`
+      UPDATE findings
+      SET is_current_scope = CASE
+            WHEN sync_source_id = ? AND sync_scope_key = ? THEN 1
+            ELSE 0
+          END,
+          updated_at = datetime('now')
+      WHERE is_current_scope != CASE
+            WHEN sync_source_id = ? AND sync_scope_key = ? THEN 1
+            ELSE 0
+          END
+        AND (sync_source_id IS NULL OR sync_source_id = ?)
+    `).run(sourceId, scopeKey, sourceId, scopeKey, sourceId);
+    return result.changes;
   }
 
   /** Get a finding by internal ID */
@@ -103,9 +215,15 @@ export class FindingRepository {
     limit?: number;
     offset?: number;
     sort_by?: 'severity' | 'date' | 'priority_score';
+    includeStale?: boolean;
   }): { findings: Finding[]; total: number } {
     const conditions: string[] = [];
     const args: (string | number)[] = [];
+
+    if (!params.includeStale) {
+      conditions.push('is_stale = 0');
+      conditions.push('is_current_scope = 1');
+    }
 
     if (params.severity?.length) {
       conditions.push(`severity IN (${params.severity.map(() => '?').join(',')})`);
@@ -153,10 +271,11 @@ export class FindingRepository {
     };
   }
 
-  /** Count findings by severity */
-  countBySeverity(): Record<string, number> {
+  /** Count findings by severity, excluding stale findings unless requested. */
+  countBySeverity(params: { includeStale?: boolean } = {}): Record<string, number> {
+    const whereClause = params.includeStale ? '' : 'WHERE is_stale = 0 AND is_current_scope = 1';
     const stmt = this.db.prepare(`
-      SELECT severity, COUNT(*) as count FROM findings GROUP BY severity
+      SELECT severity, COUNT(*) as count FROM findings ${whereClause} GROUP BY severity
     `);
     const rows = stmt.all() as Array<{ severity: string; count: number }>;
     const result: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
@@ -166,9 +285,10 @@ export class FindingRepository {
     return result;
   }
 
-  /** List scanner tool names currently present in stored findings. */
-  listTools(): string[] {
-    const stmt = this.db.prepare('SELECT DISTINCT tool FROM findings ORDER BY tool ASC');
+  /** List scanner tool names currently present in active stored findings. */
+  listTools(params: { includeStale?: boolean } = {}): string[] {
+    const whereClause = params.includeStale ? '' : 'WHERE is_stale = 0 AND is_current_scope = 1';
+    const stmt = this.db.prepare(`SELECT DISTINCT tool FROM findings ${whereClause} ORDER BY tool ASC`);
     const rows = stmt.all() as Array<{ tool: string }>;
     return rows.map((row) => row.tool);
   }
@@ -233,7 +353,18 @@ export class FindingRepository {
       last_seen_at: row.last_seen_at as string,
       dismissed_at: row.dismissed_at as string | undefined,
       dismissed_reason: row.dismissed_reason as string | undefined,
+      sync_source_id: optionalString(row.sync_source_id),
+      sync_scope_key: optionalString(row.sync_scope_key),
+      sync_run_id: optionalString(row.sync_run_id),
+      sync_seen_at: optionalString(row.sync_seen_at),
+      is_stale: Boolean(row.is_stale),
+      is_current_scope: Boolean(row.is_current_scope),
+      stale_since_at: optionalString(row.stale_since_at),
       raw_data: JSON.parse(row.raw_data as string) as Record<string, unknown>,
     };
   }
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
 }
