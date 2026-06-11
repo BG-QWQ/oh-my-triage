@@ -1,4 +1,4 @@
-import { existsSync } from 'fs';
+import { existsSync } from 'node:fs';
 import { Command } from 'commander';
 import { loadConfig } from '../../config/config.js';
 import { detectMcpClients } from '../../config/mcp-client-detector.js';

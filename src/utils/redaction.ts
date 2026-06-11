@@ -4,25 +4,25 @@ export function redactSecrets(text: string): string {
 
   // Redact API tokens and keys
   redacted = redacted.replace(
-    /\b(sk-[a-zA-Z0-9]{20,}|gh[pousr]_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|glpat-[a-zA-Z0-9\-]{20,}|\b[0-9a-f]{40}\b)\b/gi,
+    /\b(sk-[a-zA-Z0-9]{20,}|gh[pousr]_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|glpat-[a-zA-Z0-9-]{20,}|\b[0-9a-f]{40}\b)\b/gi,
     '***REDACTED***'
   );
 
   // Redact authorization headers
   redacted = redacted.replace(
-    /(Authorization:\s*(Bearer|Basic|Token)\s+)[^\s\n]+/gi,
+    /(Authorization:\s*(Bearer|Basic|Token)\s+)[^\s]+/gi,
     '$1***REDACTED***'
   );
 
   // Redact password-like strings
   redacted = redacted.replace(
-    /(password|passwd|pwd|secret|token|api[_-]?key)\s*[:=]\s*[^\s\n]+/gi,
+    /(password|passwd|pwd|secret|token|api[_-]?key)\s*[:=]\s*[^\s]+/gi,
     '$1: ***REDACTED***'
   );
 
   // Redact high-entropy strings that look like secrets
   redacted = redacted.replace(
-    /\b([a-zA-Z0-9+/]{40,}={0,2})\b/g,
+    /\b[a-zA-Z0-9+/]{40,}={0,2}\b/g,
     (match) => {
       // Calculate Shannon entropy
       const entropy = calculateEntropy(match);

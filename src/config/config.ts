@@ -1,5 +1,5 @@
-import { mkdir, writeFile } from 'fs/promises';
-import { dirname, resolve } from 'path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { cosmiconfig } from 'cosmiconfig';
 import { FindingBridgeError, ErrorCodes } from '../core/errors.js';
 import { redactSecrets } from '../utils/redaction.js';

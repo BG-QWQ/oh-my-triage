@@ -23,7 +23,9 @@ program.addCommand(createSetupCommand());
 program.addCommand(createConfigCommand());
 program.addCommand(createDiagnoseCommand());
 
-program.parseAsync(process.argv).catch((err: unknown) => {
+try {
+  await program.parseAsync(process.argv);
+} catch (err: unknown) {
   console.error(redactSecrets(err instanceof Error ? err.message : String(err)));
   process.exit(1);
-});
+}

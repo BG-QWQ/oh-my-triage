@@ -529,28 +529,9 @@ function initMcpConfigStep(): void {
 
       // Render client list
       clientList.innerHTML = '';
-      detection.clients.forEach((client) => {
-        const div = document.createElement('div');
-        div.className = 'radio-option';
-        div.innerHTML = `
-          <input type="radio" name="mcp-client" value="${escapeHtml(client.name)}" ${client.exists ? 'checked' : ''}>
-          <div>
-            <div class="radio-label">${escapeHtml(client.name)}</div>
-            <div class="radio-desc">${escapeHtml(client.config_path)}</div>
-          </div>
-        `;
-        div.addEventListener('click', () => {
-          clientList.querySelectorAll('.radio-option').forEach((o) => o.classList.remove('selected'));
-          div.classList.add('selected');
-          div.querySelector<HTMLInputElement>('input[type="radio"]')!.checked = true;
-          updateConfigPreview(client.name);
-        });
-        if (client.exists) {
-          div.classList.add('selected');
-          updateConfigPreview(client.name);
-        }
-        clientList.appendChild(div);
-      });
+      for (const client of detection.clients) {
+        renderMcpClientOption(clientList, client);
+      }
 
       showStatus(statusContainer, 'success', `Found ${detection.clients.length} MCP client(s).`);
     })
@@ -564,6 +545,33 @@ function initMcpConfigStep(): void {
   writeBtn.addEventListener('click', () => {
     void handleWriteMcpConfig(writeBtn, clientList, statusContainer);
   });
+}
+
+/** Render one selectable MCP client row. */
+function renderMcpClientOption(clientList: HTMLElement, client: McpClientDetection['clients'][number]): void {
+  const div = document.createElement('div');
+  div.className = 'radio-option';
+  div.innerHTML = `
+    <input type="radio" name="mcp-client" value="${escapeHtml(client.name)}" ${client.exists ? 'checked' : ''}>
+    <div>
+      <div class="radio-label">${escapeHtml(client.name)}</div>
+      <div class="radio-desc">${escapeHtml(client.config_path)}</div>
+    </div>
+  `;
+  div.addEventListener('click', () => selectMcpClient(clientList, div, client.name));
+  if (client.exists) {
+    div.classList.add('selected');
+    updateConfigPreview(client.name);
+  }
+  clientList.appendChild(div);
+}
+
+/** Mark an MCP client option as selected and refresh the preview. */
+function selectMcpClient(clientList: HTMLElement, option: HTMLElement, clientName: string): void {
+  clientList.querySelectorAll('.radio-option').forEach((o) => o.classList.remove('selected'));
+  option.classList.add('selected');
+  option.querySelector<HTMLInputElement>('input[type="radio"]')!.checked = true;
+  updateConfigPreview(clientName);
 }
 
 /** Write the selected MCP client configuration. */

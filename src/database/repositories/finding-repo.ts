@@ -221,8 +221,7 @@ export class FindingRepository {
     const args: (string | number)[] = [];
 
     if (!params.includeStale) {
-      conditions.push('is_stale = 0');
-      conditions.push('is_current_scope = 1');
+      conditions.push('is_stale = 0', 'is_current_scope = 1');
     }
 
     if (params.severity?.length) {

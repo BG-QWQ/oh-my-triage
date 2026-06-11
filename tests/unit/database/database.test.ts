@@ -7,9 +7,9 @@ import type { Finding } from '@/core/models/finding.js';
 import type { Rule } from '@/core/models/rule.js';
 import type { SyncLog } from '@/core/models/sync-log.js';
 import Database from 'better-sqlite3';
-import { mkdtempSync, rmSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 describe('Database Layer', () => {
   let db: Database.Database;

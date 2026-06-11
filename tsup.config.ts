@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
-import { copyFileSync, mkdirSync, rmSync, existsSync } from 'fs';
-import { join } from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 
 export default defineConfig({
   entry: {

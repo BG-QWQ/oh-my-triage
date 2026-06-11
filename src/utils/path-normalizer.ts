@@ -5,7 +5,7 @@ export function normalizePath(inputPath: string, projectRoot?: string): string {
   let path = inputPath;
 
   // 1. Replace backslashes with forward slashes
-  path = path.replace(/\\/g, '/');
+  path = path.replaceAll('\\', '/');
 
   // 2. Remove file:// prefix
   path = path.replace(/^file:\/\//, '');
@@ -18,7 +18,7 @@ export function normalizePath(inputPath: string, projectRoot?: string): string {
 
   // 5. Remove project root prefix if present
   if (projectRoot) {
-    const normalizedRoot = projectRoot.replace(/\\/g, '/').replace(/\/$/, '');
+    const normalizedRoot = projectRoot.replaceAll('\\', '/').replace(/\/$/, '');
     if (path.startsWith(normalizedRoot + '/')) {
       path = path.slice(normalizedRoot.length + 1);
     }
@@ -39,8 +39,8 @@ export function normalizePath(inputPath: string, projectRoot?: string): string {
       }
     }
     // Normalize the path after validation
-    path = path.replace(/\.\.\//g, '');
-    path = path.replace(/\.\//g, '');
+    path = path.replaceAll('../', '');
+    path = path.replaceAll('./', '');
   }
 
   // 7. Remove leading slash
@@ -54,7 +54,7 @@ export function normalizePath(inputPath: string, projectRoot?: string): string {
 
 /** Convert a Windows path to POSIX format */
 export function toPosixPath(path: string): string {
-  return path.replace(/\\/g, '/');
+  return path.replaceAll('\\', '/');
 }
 
 /** Check if a path is absolute */

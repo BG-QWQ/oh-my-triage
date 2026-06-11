@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import { dirname } from 'path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { z } from 'zod';
 import { FindingBridgeError, ErrorCodes } from '../core/errors.js';
 import { logger } from '../utils/logger.js';

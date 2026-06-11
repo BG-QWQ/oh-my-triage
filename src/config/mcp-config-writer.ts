@@ -1,5 +1,5 @@
-import { copyFile, mkdir, readFile, writeFile } from 'fs/promises';
-import { dirname, resolve } from 'path';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { FindingBridgeError, ErrorCodes } from '../core/errors.js';
 import { redactSecrets } from '../utils/redaction.js';
 import { DEFAULT_MCP_SERVER_NAME } from './defaults.js';
@@ -62,13 +62,6 @@ function generateServerConfig(params: {
       return {
         command,
         args,
-      };
-    }
-    default: {
-      return {
-        command,
-        args,
-        env,
       };
     }
   }

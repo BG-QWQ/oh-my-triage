@@ -3,6 +3,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { describe, expect, it } from 'vitest';
 import { handleApiRequest } from '@/web-ui/api-handlers.js';
 
+type HeaderValue = string | number | string[];
+
 describe('handleApiRequest', () => {
   it('dispatches setup health requests through the route table', async () => {
     const response = new StubResponse();
@@ -45,16 +47,16 @@ function createRequest(url: string, method: string): IncomingMessage {
 
 class StubResponse extends EventEmitter {
   statusCode = 0;
-  headers: Record<string, string | number | string[]> = {};
+  headers: Record<string, HeaderValue> = {};
   body = '';
 
-  writeHead(statusCode: number, headers?: Record<string, string | number | string[]>): this {
+  writeHead(statusCode: number, headers?: Record<string, HeaderValue>): this {
     this.statusCode = statusCode;
     this.headers = headers ?? {};
     return this;
   }
 
-  setHeader(name: string, value: string | number | string[]): this {
+  setHeader(name: string, value: HeaderValue): this {
     this.headers[name] = value;
     return this;
   }

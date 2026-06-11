@@ -227,18 +227,18 @@
         <div id="mcp-status"></div>
 
         <div class="form-group">
-          <label>Select MCP Client</label>
-          <div id="mcp-client-list" class="radio-group"></div>
+          <div class="field-label" id="mcp-client-list-label">Select MCP Client</div>
+          <div id="mcp-client-list" class="radio-group" aria-labelledby="mcp-client-list-label"></div>
         </div>
 
         <div class="form-group">
-          <label>Configuration Preview</label>
+          <div class="field-label" id="config-preview-label">Configuration Preview</div>
           <div class="config-preview">
             <div class="config-preview-header">
               <span>mcp_config.json</span>
               <button type="button" class="btn btn-ghost btn-sm" id="copy-config">Copy</button>
             </div>
-            <pre id="config-preview-content">Select a client to preview configuration.</pre>
+            <pre id="config-preview-content" aria-labelledby="config-preview-label">Select a client to preview configuration.</pre>
           </div>
         </div>
 

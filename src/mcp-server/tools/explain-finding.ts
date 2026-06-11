@@ -26,6 +26,7 @@ export function explainFindingTool(
 
     const rule = context.rules.getByToolRule(finding.source.tool, finding.source.rule_id);
     const taxonomy = [finding.cwe_id, finding.cwe_name, finding.owasp_category].filter(Boolean).join(', ');
+    const taxonomyNote = taxonomy ? ` associated with ${taxonomy}` : '';
     const audienceNote = buildAudienceNote(input.audience, finding.severity);
 
     return toolSuccess({
@@ -36,7 +37,7 @@ export function explainFindingTool(
           rule?.description ?? finding.source.rule_description ?? finding.message
         ),
         why_it_matters: redactSecrets(
-          `${finding.severity.toUpperCase()} severity finding${taxonomy ? ` associated with ${taxonomy}` : ''}. ${audienceNote}`
+          `${finding.severity.toUpperCase()} severity finding${taxonomyNote}. ${audienceNote}`
         ),
         likely_cause: redactSecrets(
           finding.message ?? rule?.name ?? 'The scanner matched this location to a known rule pattern.'

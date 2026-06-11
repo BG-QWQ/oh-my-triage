@@ -1,6 +1,6 @@
-import { access } from 'fs/promises';
-import { homedir } from 'os';
-import { join } from 'path';
+import { access } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 export type McpClientId = 'claude_desktop' | 'claude_code' | 'cursor' | 'vscode' | 'opencode' | 'windsurf' | 'cline';
 

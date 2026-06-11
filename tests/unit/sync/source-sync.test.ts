@@ -150,7 +150,7 @@ describe('SourceSyncService', () => {
 
     await service.syncSources();
 
-    expect(new FindingRepository(db).list({}).findings.map((finding) => finding.id).sort()).toEqual([
+    expect(new FindingRepository(db).list({}).findings.map((finding) => finding.id).sort((a, b) => a.localeCompare(b))).toEqual([
       'fb-first-001',
       'fb-second-001',
     ]);
@@ -321,7 +321,9 @@ describe('SourceSyncService', () => {
 
     expect(result.results[0]).toMatchObject({ stale_isolation_applied: false });
     expect(new FindingRepository(db).list({}).findings.map((finding) => finding.id)).toEqual(['fb-project-a-001']);
-    expect(new FindingRepository(db).list({ includeStale: true }).findings.map((finding) => finding.id).sort()).toEqual([
+    expect(
+      new FindingRepository(db).list({ includeStale: true }).findings.map((finding) => finding.id).sort((a, b) => a.localeCompare(b))
+    ).toEqual([
       'fb-project-a-001',
       'fb-project-b-001',
     ]);

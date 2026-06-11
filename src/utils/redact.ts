@@ -1,13 +1,13 @@
 const SECRET_PATTERNS = [
-  /token[:\s=]+['"]?([a-zA-Z0-9_\-]{20,})['"]?/gi,
-  /api[_-]?key[:\s=]+['"]?([a-zA-Z0-9_\-]{16,})['"]?/gi,
+  /token[:\s=]+['"]?([a-zA-Z0-9_-]{20,})['"]?/gi,
+  /api[_-]?key[:\s=]+['"]?([a-zA-Z0-9_-]{16,})['"]?/gi,
   /password[:\s=]+['"]?[^'"\s]{8,}['"]?/gi,
-  /secret[:\s=]+['"]?([a-zA-Z0-9_\-]{16,})['"]?/gi,
-  /authorization[:\s=]+\s*(bearer\s+)?([a-zA-Z0-9_\-\.]{20,})/gi,
+  /secret[:\s=]+['"]?([a-zA-Z0-9_-]{16,})['"]?/gi,
+  /authorization[:\s=]+\s*(bearer\s+)?([a-zA-Z0-9_.-]{20,})/gi,
   /private[_-]?key[:\s=]+['"]?[^'"\s]{20,}['"]?/gi,
   /ghp_[a-zA-Z0-9]{36}/g,
   /gho_[a-zA-Z0-9]{36}/g,
-  /github_pat_[a-zA-Z0-9_]{22,}/g,
+  /github_pat_\w{22,}/g,
   /sk-[a-zA-Z0-9]{48}/g,
 ]
 

@@ -1,4 +1,4 @@
-import { type IncomingMessage, type ServerResponse } from 'http';
+import { type IncomingMessage, type ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { logger } from '../utils/logger.js';
 import { SonarCloudAdapter } from '../adapters/sonarcloud/sonarcloud-adapter.js';
@@ -198,8 +198,8 @@ async function handleTestConnection(req: IncomingMessage, res: ServerResponse): 
     let result;
     switch (scanner_type) {
       case 'sonarcloud': {
-        const token = String(config.token ?? '');
-        const organization = config.organization ? String(config.organization) : undefined;
+        const token = configString(config, 'token');
+        const organization = configString(config, 'organization') || undefined;
         
         if (!token) {
           sendError(res, 400, 'SonarCloud token is required');
@@ -207,27 +207,27 @@ async function handleTestConnection(req: IncomingMessage, res: ServerResponse): 
         }
         
         // If no organization provided, try to validate token only
-        if (!organization) {
-          const client = new SonarCloudAdapter({ token });
-          result = await client.testConnection();
-        } else {
+        if (organization) {
           const adapter = new SonarCloudAdapter({ token, organization });
           result = await adapter.testConnection();
+        } else {
+          const client = new SonarCloudAdapter({ token });
+          result = await client.testConnection();
         }
         break;
       }
       case 'github': {
         const adapter = new GitHubAdapter({
-          token: String(config.token ?? ''),
-          owner: String(config.owner ?? config.org ?? ''),
-          repo: String(config.repo ?? ''),
+          token: configString(config, 'token'),
+          owner: firstConfigString(config, 'owner', 'org'),
+          repo: configString(config, 'repo'),
         });
         result = await adapter.testConnection();
         break;
       }
       case 'sarif': {
         const adapter = new SarifAdapter({
-          filePath: String(config.file_path ?? config.path ?? ''),
+          filePath: firstConfigString(config, 'file_path', 'path'),
         });
         result = await adapter.testConnection();
         break;
@@ -243,6 +243,15 @@ async function handleTestConnection(req: IncomingMessage, res: ServerResponse): 
     const message = err instanceof Error ? err.message : 'Connection test failed';
     sendError(res, 500, message);
   }
+}
+
+function configString(config: Record<string, unknown>, key: string): string {
+  const value = config[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function firstConfigString(config: Record<string, unknown>, firstKey: string, secondKey: string): string {
+  return configString(config, firstKey) || configString(config, secondKey);
 }
 
 /** Handle POST /api/setup/detect-mcp-clients */

@@ -1,5 +1,5 @@
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createConnection, closeConnection } from '../database/connection.js';
 import { FindingRepository } from '../database/repositories/finding-repo.js';
 import { getDemoDatabasePath } from '../config/defaults.js';

@@ -1,4 +1,5 @@
 import type { Finding } from '../../core/models/finding.js';
+import type { SourceType } from '../../core/models/common.js';
 import { getSourceDisplayName } from '../../core/normalization/source-metadata.js';
 import { redactCodeSnippet, redactSecrets } from '../../utils/redaction.js';
 import type { FindingBridgeMcpContext } from '../context.js';
@@ -54,7 +55,7 @@ export interface FindingBridgeProvenanceWarning {
   agent_instruction: string;
 }
 
-const SOURCE_TOOL_ALIASES: Record<string, string[]> = {
+const SOURCE_TOOL_ALIASES: Record<SourceType, string[]> = {
   sarif: ['SARIF'],
   github: ['GitHub Code Scanning', 'CodeQL'],
   sonarcloud: ['SonarCloud'],
@@ -184,7 +185,15 @@ function demoDataRemediationSteps(): string[] {
 }
 
 function expectedToolsForSource(sourceType: string): string[] {
-  return SOURCE_TOOL_ALIASES[sourceType] ?? [getSourceDisplayName(sourceType as never), sourceType];
+  if (isSourceType(sourceType)) {
+    return SOURCE_TOOL_ALIASES[sourceType] ?? [getSourceDisplayName(sourceType), sourceType];
+  }
+
+  return [sourceType];
+}
+
+function isSourceType(sourceType: string): sourceType is SourceType {
+  return sourceType in SOURCE_TOOL_ALIASES;
 }
 
 function normalizeToolName(toolName: string): string {

@@ -5,7 +5,7 @@ export function normalizeSeverity(rawSeverity: string, tool: string): UnifiedSev
   const normalizedRaw = rawSeverity.toLowerCase().trim();
   const mapping = SEVERITY_MAP[tool.toLowerCase()];
 
-  if (mapping && mapping[normalizedRaw]) {
+  if (mapping?.[normalizedRaw]) {
     return mapping[normalizedRaw];
   }
 

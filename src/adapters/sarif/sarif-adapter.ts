@@ -1,4 +1,4 @@
-import { stat, readFile } from 'fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { z } from 'zod';
 import type { AdapterFetchResult, BaseAdapter, ConnectionTestResult } from '../base-adapter.js';
 import { FindingBridgeError, ErrorCodes } from '../../core/errors.js';

@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import type { AdapterFetchResult, BaseAdapter } from '../adapters/base-adapter.js';
 import { GitHubAdapter } from '../adapters/github/github-adapter.js';
 import { SarifAdapter } from '../adapters/sarif/sarif-adapter.js';
@@ -293,9 +293,9 @@ export class SourceSyncService {
       findings_stale_marked: findingsStaleMarked,
       stale_isolation_applied: staleIsolationApplied,
       pages_fetched: pagesFetched,
-      next_steps: !fetchComplete
-        ? ['More pages are available. Rerun sync with a higher max_pages value if you need the full scanner result set.']
-        : ['Call findingbridge_summary or findingbridge_list_findings to inspect synchronized findings.'],
+      next_steps: fetchComplete
+        ? ['Call findingbridge_summary or findingbridge_list_findings to inspect synchronized findings.']
+        : ['More pages are available. Rerun sync with a higher max_pages value if you need the full scanner result set.'],
     };
   }
 
