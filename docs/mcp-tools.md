@@ -349,9 +349,16 @@ Call this before reading current scanner platform results with
   "project_keys": {
     "sonarcloud": "org_project"
   },
+  "all_sources": false,
   "max_pages": 20
 }
 ```
+
+When `source_ids` is omitted, synchronization defaults to the current GitHub
+repository if the local `origin` remote matches one configured GitHub source.
+This avoids pulling every configured repository in multi-repository setups. Pass
+`all_sources: true` only when you intentionally want to synchronize every enabled
+source.
 
 For SonarCloud sources without a saved `project_key`, first call
 `findingbridge_list_source_projects`, then pass the selected project key as

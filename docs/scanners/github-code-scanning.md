@@ -29,6 +29,11 @@ findingbridge setup --cli
 
 When multiple repositories are selected, FindingBridge writes one GitHub source per repository and reuses the same token reference for all of them. This keeps sync isolation repository-scoped while avoiding raw token duplication in the configuration file.
 
+By default, synchronization runs only for the configured GitHub source that
+matches the current repository's `origin` remote. Use `findingbridge sync --all`
+or pass `all_sources: true` to `findingbridge_sync_sources` when you explicitly
+want to synchronize every selected repository.
+
 Or set directly:
 
 ```bash
@@ -61,6 +66,7 @@ If permissions are missing, the setup wizard shows:
 
 - Pagination: 100 alerts per page
 - Multi-repository setup: each selected repository syncs as its own configured source
+- Default synchronization: current repository source only; explicit full sync requires `--all` or `all_sources: true`
 - Rate limiting: Follows GitHub API limits
 - Error handling: 401/403/404/429 with actionable messages
 
