@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+type ColumnAddition = {
+  name: string;
+  definition: string;
+};
+
 /** Initialize SQLite connection with schema migration */
 export function createConnection(dbPath: string): Database.Database {
   const db = new Database(dbPath);
@@ -23,14 +28,7 @@ export function createConnection(dbPath: string): Database.Database {
 }
 
 function migrateSyncFreshness(db: Database.Database): void {
-  const columns = new Set(
-    (
-      db.prepare('PRAGMA table_info(findings)').all() as Array<{
-        name: string;
-      }>
-    ).map((column) => column.name)
-  );
-  const additions: Array<{ name: string; definition: string }> = [
+  addMissingColumns(db, 'findings', [
     { name: 'sync_source_id', definition: 'sync_source_id TEXT' },
     { name: 'sync_scope_key', definition: 'sync_scope_key TEXT' },
     { name: 'sync_run_id', definition: 'sync_run_id TEXT' },
@@ -38,13 +36,7 @@ function migrateSyncFreshness(db: Database.Database): void {
     { name: 'is_stale', definition: 'is_stale INTEGER NOT NULL DEFAULT 0' },
     { name: 'is_current_scope', definition: 'is_current_scope INTEGER NOT NULL DEFAULT 1' },
     { name: 'stale_since_at', definition: 'stale_since_at TEXT' },
-  ];
-
-  for (const addition of additions) {
-    if (!columns.has(addition.name)) {
-      db.exec(`ALTER TABLE findings ADD COLUMN ${addition.definition}`);
-    }
-  }
+  ]);
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_findings_is_stale ON findings(is_stale);
@@ -56,21 +48,24 @@ function migrateSyncFreshness(db: Database.Database): void {
 }
 
 function migrateSyncLogFreshness(db: Database.Database): void {
+  addMissingColumns(db, 'sync_logs', [
+    { name: 'findings_stale_marked', definition: 'findings_stale_marked INTEGER NOT NULL DEFAULT 0' },
+    { name: 'stale_isolation_applied', definition: 'stale_isolation_applied INTEGER NOT NULL DEFAULT 0' },
+  ]);
+}
+
+function addMissingColumns(db: Database.Database, tableName: string, additions: ColumnAddition[]): void {
   const columns = new Set(
     (
-      db.prepare('PRAGMA table_info(sync_logs)').all() as Array<{
+      db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{
         name: string;
       }>
     ).map((column) => column.name)
   );
-  const additions: Array<{ name: string; definition: string }> = [
-    { name: 'findings_stale_marked', definition: 'findings_stale_marked INTEGER NOT NULL DEFAULT 0' },
-    { name: 'stale_isolation_applied', definition: 'stale_isolation_applied INTEGER NOT NULL DEFAULT 0' },
-  ];
 
   for (const addition of additions) {
     if (!columns.has(addition.name)) {
-      db.exec(`ALTER TABLE sync_logs ADD COLUMN ${addition.definition}`);
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${addition.definition}`);
     }
   }
 }
