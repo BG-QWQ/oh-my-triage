@@ -8,6 +8,19 @@ export const ConnectionTestResult = z.object({
   help_url: z.string().url().optional(),
   suggestion: z.string().optional(),
   projects_found: z.number().optional(),
+  orgs_found: z.number().optional(),
+  repositories: z
+    .array(
+      z.object({
+        owner: z.string(),
+        name: z.string(),
+        full_name: z.string(),
+        private: z.boolean().optional(),
+        archived: z.boolean().optional(),
+        disabled: z.boolean().optional(),
+      })
+    )
+    .optional(),
 });
 
 export type ConnectionTestResult = z.infer<typeof ConnectionTestResult>;

@@ -7,7 +7,7 @@ import { mapFields } from '../../core/normalization/field-mapper.js';
 import { normalizeSeverity } from '../../core/normalization/severity-mapper.js';
 import { toAdapterError } from '../adapter-errors.js';
 import { GitHubClient, type GitHubClientOptions } from './github-client.js';
-import type { GitHubCodeScanningAlert } from './github-schemas.js';
+import type { GitHubCodeScanningAlert, GitHubRepository } from './github-schemas.js';
 
 /** Configuration for syncing GitHub Code Scanning alerts. */
 export type GitHubAdapterOptions = GitHubClientOptions & {
@@ -31,11 +31,16 @@ export class GitHubAdapter implements BaseAdapter {
   async testConnection(): Promise<ConnectionTestResult> {
     try {
       const result = await this.client.validateConnection();
+      const repositories = await this.client.listAccessibleRepositories();
+      const owners = new Set(repositories.map((repository) => repository.owner.login));
       return {
         valid: true,
         reason: result.observedScopes.length
           ? `GitHub connection validated with scopes: ${result.observedScopes.join(', ')}.`
           : 'GitHub connection validated; GitHub did not return OAuth scope headers.',
+        projects_found: repositories.length,
+        orgs_found: owners.size,
+        repositories: repositories.map(mapGitHubRepositoryOption),
       };
     } catch (error: unknown) {
       const adapterError = toAdapterError(error, {
@@ -63,6 +68,17 @@ export class GitHubAdapter implements BaseAdapter {
       next_cursor: pageAlerts.length === 100 ? String(page + 1) : undefined,
     };
   }
+}
+
+function mapGitHubRepositoryOption(repository: GitHubRepository): NonNullable<ConnectionTestResult['repositories']>[number] {
+  return {
+    owner: repository.owner.login,
+    name: repository.name,
+    full_name: repository.full_name,
+    private: repository.private,
+    archived: repository.archived,
+    disabled: repository.disabled,
+  };
 }
 
 /** Map one GitHub Code Scanning alert into the canonical Finding model. */
