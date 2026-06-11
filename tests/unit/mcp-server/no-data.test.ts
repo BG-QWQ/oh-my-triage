@@ -8,6 +8,9 @@ import { listFindingsTool } from '@/mcp-server/tools/list-findings.js';
 import { listSourceProjectsTool } from '@/mcp-server/tools/list-source-projects.js';
 import { summaryTool } from '@/mcp-server/tools/summary.js';
 import { syncSourcesTool } from '@/mcp-server/tools/sync-sources.js';
+import { getFindingDetailTool } from '@/mcp-server/tools/get-finding-detail.js';
+import { generateReportTool } from '@/mcp-server/tools/generate-report.js';
+import { deduplicateFindingsTool } from '@/mcp-server/tools/deduplicate-findings.js';
 import type { FindingBridgeToolEnvelope } from '@/mcp-server/tool-result.js';
 import type { FindingBridgeMcpContext } from '@/mcp-server/context.js';
 import type { Finding } from '@/core/models/finding.js';
@@ -15,10 +18,19 @@ import type { Finding } from '@/core/models/finding.js';
 function unwrapData(result: CallToolResult): Record<string, unknown> {
   const envelope = result.structuredContent as FindingBridgeToolEnvelope<Record<string, unknown>> | undefined;
   expect(envelope?.success).toBe(true);
-  if (!envelope || !envelope.success) {
+  if (!envelope?.success) {
     throw new Error('Expected successful FindingBridge tool envelope.');
   }
   return envelope.data;
+}
+
+function unwrapFailure(result: CallToolResult): Extract<FindingBridgeToolEnvelope<Record<string, unknown>>, { success: false }> {
+  const envelope = result.structuredContent as FindingBridgeToolEnvelope<Record<string, unknown>> | undefined;
+  expect(envelope?.success).toBe(false);
+  if (!envelope || envelope.success) {
+    throw new Error('Expected failed FindingBridge tool envelope.');
+  }
+  return envelope;
 }
 
 describe('MCP no-data responses', () => {
@@ -84,6 +96,105 @@ describe('MCP no-data responses', () => {
       project_scope_supported: false,
       current_project_matched: false,
     });
+  });
+
+  it('excludes stale findings from summary and list defaults while allowing explicit list inclusion', () => {
+    context.findings.upsert(createCodeQlFinding(), {
+      sourceId: 'github',
+      scopeKey: 'github:repo:acme',
+      syncRunId: 'sync-001',
+      seenAt: '2024-01-01T00:00:00.000Z',
+    });
+    context.findings.markStaleForSyncScope({
+      sourceId: 'github',
+      scopeKey: 'github:repo:acme',
+      activeFingerprints: [],
+      staleSinceAt: '2024-01-02T00:00:00.000Z',
+    });
+
+    const summaryData = unwrapData(summaryTool(context));
+    const defaultListData = unwrapData(
+      listFindingsTool(context, {
+        limit: 20,
+        offset: 0,
+        sort_by: 'priority_score',
+        include_stale: false,
+      })
+    );
+    const staleListData = unwrapData(
+      listFindingsTool(context, {
+        limit: 20,
+        offset: 0,
+        sort_by: 'priority_score',
+        include_stale: true,
+      })
+    );
+
+    expect(summaryData.total).toBe(0);
+    expect(defaultListData.total).toBe(0);
+    expect(staleListData.total).toBe(1);
+    expect(staleListData.findings).toEqual([expect.objectContaining({ id: 'fb-codeql-mismatch-001', is_stale: true })]);
+    expect(staleListData.filters).toMatchObject({ include_stale: true });
+  });
+
+  it('excludes stale findings from exact-id MCP reads unless explicitly included', () => {
+    context.findings.upsert(createCodeQlFinding(), {
+      sourceId: 'github',
+      scopeKey: 'github:repo:acme',
+      syncRunId: 'sync-001',
+      seenAt: '2024-01-01T00:00:00.000Z',
+    });
+    context.findings.markStaleForSyncScope({
+      sourceId: 'github',
+      scopeKey: 'github:repo:acme',
+      activeFingerprints: [],
+      staleSinceAt: '2024-01-02T00:00:00.000Z',
+    });
+
+    const defaultDetail = unwrapFailure(
+      getFindingDetailTool(context, {
+        finding_id: 'fb-codeql-mismatch-001',
+        include_code_context: true,
+        context_lines: 20,
+      })
+    );
+    const staleDetail = unwrapData(
+      getFindingDetailTool(context, {
+        finding_id: 'fb-codeql-mismatch-001',
+        include_code_context: true,
+        context_lines: 20,
+        include_stale: true,
+      })
+    );
+    const defaultReport = unwrapData(
+      generateReportTool(context, {
+        format: 'json',
+        scope: { finding_ids: ['fb-codeql-mismatch-001'] },
+        include_recommendations: true,
+        language: 'en',
+      })
+    );
+    const staleReport = unwrapData(
+      generateReportTool(context, {
+        format: 'json',
+        scope: { finding_ids: ['fb-codeql-mismatch-001'], include_stale: true },
+        include_recommendations: true,
+        language: 'en',
+      })
+    );
+    const defaultDedup = unwrapData(
+      deduplicateFindingsTool(context, {
+        scope: { finding_ids: ['fb-codeql-mismatch-001'] },
+        dry_run: true,
+      })
+    );
+
+    expect(defaultDetail.error).toMatchObject({ code: 'finding_not_found' });
+    expect(defaultDetail.error.next_steps).toContain('If you intentionally need historical findings, retry with include_stale set to true.');
+    expect(staleDetail.finding).toMatchObject({ id: 'fb-codeql-mismatch-001', is_stale: true });
+    expect((defaultReport.content as { findings: unknown[] }).findings).toEqual([]);
+    expect((staleReport.content as { findings: unknown[] }).findings).toHaveLength(1);
+    expect(defaultDedup.scanned_count).toBe(0);
   });
 
   it('warns when configured sources do not match stored finding tools', () => {
