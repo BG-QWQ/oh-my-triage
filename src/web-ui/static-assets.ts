@@ -1,7 +1,7 @@
-import { readFile, stat } from 'fs/promises';
-import { join, extname } from 'path';
-import { fileURLToPath } from 'url';
-import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'http';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import { readFile, stat } from 'node:fs/promises';
+import { extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { logger } from '../utils/logger.js';
 import { handleApiRequest } from './api-handlers.js';
 
@@ -88,39 +88,8 @@ export async function startStaticServer(options: StaticServerOptions = {}): Prom
   const host = options.host ?? 'localhost';
   const rootDir = options.rootDir ?? join(fileURLToPath(new URL('.', import.meta.url)), '..');
 
-  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    const urlPath = req.url?.split('?')[0] ?? '/';
-
-    // Handle API requests first
-    if (urlPath.startsWith('/api/')) {
-      const handled = await handleApiRequest(req, res);
-      if (handled) return;
-    }
-
-    const result = await readStaticFile(rootDir, urlPath);
-    if (result) {
-      res.writeHead(200, {
-        'Content-Type': result.contentType,
-        'Cache-Control': 'no-cache',
-      });
-      res.end(result.data);
-      return;
-    }
-
-    // SPA fallback: try serving index.html for unknown routes
-    if (urlPath !== '/' && !urlPath.startsWith('/api/')) {
-      const fallback = await readStaticFile(rootDir, '/');
-      if (fallback) {
-        res.writeHead(200, {
-          'Content-Type': fallback.contentType,
-          'Cache-Control': 'no-cache',
-        });
-        res.end(fallback.data);
-        return;
-      }
-    }
-
-    serveNotFound(res);
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    void handleStaticRequest(req, res, rootDir);
   });
 
   return new Promise((resolve, reject) => {
@@ -142,6 +111,41 @@ export async function startStaticServer(options: StaticServerOptions = {}): Prom
       resolve({ server, url, port: actualPort });
     });
   });
+}
+
+async function handleStaticRequest(req: IncomingMessage, res: ServerResponse, rootDir: string): Promise<void> {
+  const urlPath = req.url?.split('?')[0] ?? '/';
+
+  // Handle API requests first
+  if (urlPath.startsWith('/api/')) {
+    const handled = await handleApiRequest(req, res);
+    if (handled) return;
+  }
+
+  const result = await readStaticFile(rootDir, urlPath);
+  if (result) {
+    res.writeHead(200, {
+      'Content-Type': result.contentType,
+      'Cache-Control': 'no-cache',
+    });
+    res.end(result.data);
+    return;
+  }
+
+  // SPA fallback: try serving index.html for unknown routes
+  if (urlPath !== '/' && !urlPath.startsWith('/api/')) {
+    const fallback = await readStaticFile(rootDir, '/');
+    if (fallback) {
+      res.writeHead(200, {
+        'Content-Type': fallback.contentType,
+        'Cache-Control': 'no-cache',
+      });
+      res.end(fallback.data);
+      return;
+    }
+  }
+
+  serveNotFound(res);
 }
 
 /**
