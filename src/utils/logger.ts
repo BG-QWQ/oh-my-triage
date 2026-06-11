@@ -4,7 +4,7 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /** Simple logger that redacts secrets from output */
 export class Logger {
-  private level: LogLevel;
+  private readonly level: LogLevel;
 
   constructor(level: LogLevel = 'info') {
     this.level = level;

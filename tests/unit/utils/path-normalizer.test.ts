@@ -3,7 +3,7 @@ import { normalizePath } from '@/utils/path-normalizer.js';
 
 describe('normalizePath', () => {
   it('replaces backslashes with forward slashes', () => {
-    expect(normalizePath('src\\db.ts')).toBe('src/db.ts');
+    expect(normalizePath(String.raw`src\db.ts`)).toBe('src/db.ts');
   });
 
   it('removes file:// prefix', () => {
