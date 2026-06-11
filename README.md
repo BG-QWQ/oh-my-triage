@@ -4,7 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/findingbridge)](https://www.npmjs.com/package/findingbridge)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=BG-QWQ_FindingBridge&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BG-QWQ_FindingBridge)
 ## 🤔 Why FindingBridge?
 
 As a developer, you’ve probably been overwhelmed by security scanner alerts. SonarCloud, GitHub Code Scanning, Semgrep, Trivy — each has its own interface, severity levels, and jargon. FindingBridge connects these scanners and exposes their findings through **MCP (Model Context Protocol)** tools, so your AI assistant can help you understand, prioritize, and fix them.
