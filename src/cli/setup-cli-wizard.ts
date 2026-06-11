@@ -59,6 +59,8 @@ async function promptForSource(tokenStorage: TokenStorage): Promise<SourceConfig
   });
   const name = await input({ message: 'Display name', default: id });
   const path = type === 'sarif' ? await input({ message: 'Default SARIF path (optional)', required: false }) : undefined;
+  const normalizedPath = path?.trim();
+  const options = await promptForSourceOptions(type);
   let tokenRef: string | undefined;
   if (type !== 'sarif') {
     const token = await password({ message: `Token for ${id}` });
@@ -75,8 +77,24 @@ async function promptForSource(tokenStorage: TokenStorage): Promise<SourceConfig
     type,
     name,
     enabled: true,
-    path: path || undefined,
+    path: normalizedPath !== '' ? normalizedPath : undefined,
     token_ref: tokenRef,
-    options: {},
+    options,
   };
+}
+
+async function promptForSourceOptions(type: SourceConfig['type']): Promise<Record<string, unknown>> {
+  if (type === 'github') {
+    const owner = await input({ message: 'GitHub repository owner or organization' });
+    const repo = await input({ message: 'GitHub repository name' });
+    return { owner: owner.trim(), repo: repo.trim() };
+  }
+
+  if (type === 'sonarcloud') {
+    const organization = await input({ message: 'SonarCloud organization key' });
+    const projectKey = await input({ message: 'SonarCloud project key (optional)', required: false });
+    return { organization: organization.trim(), project_key: projectKey.trim() || undefined };
+  }
+
+  return {};
 }
