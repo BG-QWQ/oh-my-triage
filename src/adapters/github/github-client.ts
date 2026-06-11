@@ -1,9 +1,16 @@
 ﻿import { ErrorCodes, FindingBridgeError } from '../../core/errors.js';
 import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
-import { GitHubCodeScanningAlertPageSchema, type GitHubCodeScanningAlertPage } from './github-schemas.js';
+import {
+  GitHubCodeScanningAlertPageSchema,
+  GitHubAuthenticatedUserSchema,
+  GitHubRepositoryPageSchema,
+  type GitHubCodeScanningAlertPage,
+  type GitHubRepository,
+} from './github-schemas.js';
 
 const GITHUB_API_BASE = 'https://api.github.com';
 const REQUIRED_SCOPES = ['security_events'];
+const DEFAULT_PER_PAGE = 100;
 
 /** Configuration for GitHub REST API access. */
 export type GitHubClientOptions = {
@@ -38,6 +45,12 @@ export class GitHubClient {
     const response = this.owner && this.repo
       ? await this.request(`/repos/${encodeURIComponent(this.owner)}/${encodeURIComponent(this.repo)}`)
       : await this.request('/user');
+    const body = await response.json() as unknown;
+    if (this.owner && this.repo) {
+      GitHubRepositoryPageSchema.element.parse(body);
+    } else {
+      GitHubAuthenticatedUserSchema.parse(body);
+    }
     const observedScopes = parseScopes(response.headers.get('x-oauth-scopes'));
     const missingScopes = missingRequiredScopes(observedScopes, REQUIRED_SCOPES);
     if (observedScopes.length > 0 && missingScopes.length > 0) {
@@ -81,6 +94,27 @@ export class GitHubClient {
         ],
       });
     }
+  }
+
+  /** List repositories visible to the token for setup-time owner/repo selection. */
+  async listAccessibleRepositories(options: { maxPages?: number } = {}): Promise<GitHubRepository[]> {
+    const maxPages = Math.max(1, options.maxPages ?? 10);
+    const repositories: GitHubRepository[] = [];
+
+    for (let page = 1; page <= maxPages; page += 1) {
+      const response = await this.request(
+        `/user/repos?per_page=${DEFAULT_PER_PAGE}&page=${page}&visibility=all&affiliation=owner,collaborator,organization_member&sort=full_name&direction=asc`
+      );
+      const body = await response.json() as unknown;
+      const pageRepositories = GitHubRepositoryPageSchema.parse(body);
+      repositories.push(...pageRepositories);
+
+      if (pageRepositories.length < DEFAULT_PER_PAGE) {
+        break;
+      }
+    }
+
+    return repositories;
   }
 
   private async request(path: string): Promise<Response> {

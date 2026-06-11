@@ -2,6 +2,60 @@
 
 const nullableString = z.string().nullable().optional();
 
+/** Validate the authenticated user shape returned by GitHub token validation. */
+export const GitHubAuthenticatedUserSchema = z
+  .object({
+    login: z.string(),
+    id: z.number().int(),
+  })
+  .passthrough();
+
+/** Validate the repository owner shape returned by GitHub repository list APIs. */
+export const GitHubRepositoryOwnerSchema = z
+  .object({
+    login: z.string(),
+    id: z.number().int(),
+    node_id: z.string().optional(),
+    type: z.string().optional(),
+    avatar_url: z.string().url().optional(),
+    html_url: z.string().url().optional(),
+  })
+  .passthrough();
+
+/** Validate a repository returned by GitHub repository discovery APIs. */
+export const GitHubRepositorySchema = z
+  .object({
+    id: z.number().int(),
+    node_id: z.string().optional(),
+    name: z.string(),
+    full_name: z.string(),
+    html_url: z.string().url().optional(),
+    private: z.boolean().optional(),
+    visibility: z.string().optional(),
+    fork: z.boolean().optional(),
+    archived: z.boolean().optional(),
+    disabled: z.boolean().optional(),
+    default_branch: z.string().optional(),
+    description: nullableString,
+    language: nullableString,
+    pushed_at: nullableString,
+    owner: GitHubRepositoryOwnerSchema,
+    permissions: z
+      .object({
+        admin: z.boolean().optional(),
+        maintain: z.boolean().optional(),
+        push: z.boolean().optional(),
+        triage: z.boolean().optional(),
+        pull: z.boolean().optional(),
+      })
+      .partial()
+      .optional(),
+  })
+  .passthrough();
+
+/** Validate one page returned by GitHub repository discovery APIs. */
+export const GitHubRepositoryPageSchema = z.array(GitHubRepositorySchema);
+
 /** Validate GitHub Code Scanning alert locations returned by the REST API. */
 export const GitHubCodeScanningLocationSchema = z
   .object({
@@ -77,3 +131,9 @@ export type GitHubCodeScanningAlert = z.infer<typeof GitHubCodeScanningAlertSche
 
 /** Page of GitHub Code Scanning alerts accepted by the GitHub adapter. */
 export type GitHubCodeScanningAlertPage = z.infer<typeof GitHubCodeScanningAlertPageSchema>;
+
+/** Repository returned by GitHub repository discovery APIs. */
+export type GitHubRepository = z.infer<typeof GitHubRepositorySchema>;
+
+/** Authenticated user returned by GitHub token validation. */
+export type GitHubAuthenticatedUser = z.infer<typeof GitHubAuthenticatedUserSchema>;
