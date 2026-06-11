@@ -8,6 +8,8 @@ export interface MarkdownReport {
   topPriorities: string[];
 }
 
+const SEVERITY_ORDER: Finding['severity'][] = ['critical', 'high', 'medium', 'low', 'info'];
+
 /** Generate a Markdown report from findings */
 export function generateMarkdownReport(
   findings: Finding[],
@@ -23,64 +25,11 @@ export function generateMarkdownReport(
 
   let content = `# ${title}\n\n`;
   content += `Generated: ${new Date().toISOString()}\n\n`;
+  content += renderSummarySection(summary);
+  content += renderTopPrioritiesSection(findings, topPriorities);
 
-  // Summary section
-  content += `## Summary\n\n`;
-  content += `- **Total findings**: ${summary.total}\n`;
-  content += `- **Critical**: ${summary.critical}\n`;
-  content += `- **High**: ${summary.high}\n`;
-  content += `- **Medium**: ${summary.medium}\n`;
-  content += `- **Low**: ${summary.low}\n`;
-  content += `- **Info**: ${summary.info}\n\n`;
-
-  // Top priorities
-  if (topPriorities.length > 0) {
-    content += `## Top Priorities\n\n`;
-    for (const id of topPriorities) {
-      const finding = findings.find((f) => f.id === id);
-      if (finding) {
-        content += `- **${finding.id}** (${finding.severity}): ${finding.title}\n`;
-        content += `  - Location: ${finding.location.file_path}:${finding.location.start_line}\n`;
-        content += `  - Rule: ${finding.source.rule_id}\n`;
-        if (finding.cwe_id) {
-          content += `  - CWE: ${finding.cwe_id}\n`;
-        }
-        content += `\n`;
-      }
-    }
-  }
-
-  // Detailed findings
   if (options.includeRecommendations !== false) {
-    content += `## All Findings\n\n`;
-    const sorted = [...findings].sort((a, b) => {
-      const order = ['critical', 'high', 'medium', 'low', 'info'];
-      return order.indexOf(a.severity) - order.indexOf(b.severity);
-    });
-
-    for (const finding of sorted) {
-      content += `### ${finding.id} — ${finding.title}\n\n`;
-      content += `- **Severity**: ${finding.severity}\n`;
-      content += `- **Status**: ${finding.status}\n`;
-      content += `- **Location**: ${finding.location.file_path}:${finding.location.start_line}\n`;
-      content += `- **Tool**: ${finding.source.tool}\n`;
-      content += `- **Rule**: ${finding.source.rule_id}\n`;
-      if (finding.cwe_id) {
-        content += `- **CWE**: ${finding.cwe_id}\n`;
-      }
-      if (finding.is_duplicate) {
-        content += `- **Duplicate**: Yes (group ${finding.duplicate_group_id})\n`;
-      }
-      content += `\n${finding.message}\n\n`;
-
-      if (finding.fix_suggestion) {
-        content += `**Fix Suggestion**: ${finding.fix_suggestion.description}\n`;
-        if (finding.fix_suggestion.code_example) {
-          content += `\n\`\`\`${finding.location.file_path.split('.').pop() ?? 'code'}\n${finding.fix_suggestion.code_example}\n\`\`\`\n`;
-        }
-        content += `\n`;
-      }
-    }
+    content += renderAllFindingsSection(findings);
   }
 
   return {
@@ -89,4 +38,106 @@ export function generateMarkdownReport(
     summary,
     topPriorities,
   };
+}
+
+/** Render aggregate severity counts for a report. */
+function renderSummarySection(summary: MarkdownReport['summary']): string {
+  return [
+    '## Summary',
+    '',
+    `- **Total findings**: ${summary.total}`,
+    `- **Critical**: ${summary.critical}`,
+    `- **High**: ${summary.high}`,
+    `- **Medium**: ${summary.medium}`,
+    `- **Low**: ${summary.low}`,
+    `- **Info**: ${summary.info}`,
+    '',
+    '',
+  ].join('\n');
+}
+
+/** Render the prioritized finding summary section. */
+function renderTopPrioritiesSection(findings: Finding[], topPriorities: string[]): string {
+  if (topPriorities.length === 0) {
+    return '';
+  }
+
+  const findingsById = new Map(findings.map((finding) => [finding.id, finding]));
+  const lines = ['## Top Priorities', ''];
+  for (const id of topPriorities) {
+    const finding = findingsById.get(id);
+    if (finding) {
+      lines.push(...renderTopPriorityLines(finding));
+    }
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+/** Render one top-priority finding entry. */
+function renderTopPriorityLines(finding: Finding): string[] {
+  const lines = [
+    `- **${finding.id}** (${finding.severity}): ${finding.title}`,
+    `  - Location: ${finding.location.file_path}:${finding.location.start_line}`,
+    `  - Rule: ${finding.source.rule_id}`,
+  ];
+  if (finding.cwe_id) {
+    lines.push(`  - CWE: ${finding.cwe_id}`);
+  }
+  lines.push('');
+  return lines;
+}
+
+/** Render all findings in severity order. */
+function renderAllFindingsSection(findings: Finding[]): string {
+  const sorted = [...findings].sort(compareFindingSeverity);
+  return `## All Findings\n\n${sorted.map(renderFindingSection).join('')}`;
+}
+
+/** Compare findings by unified severity order. */
+function compareFindingSeverity(a: Finding, b: Finding): number {
+  return SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity);
+}
+
+/** Render one detailed finding section. */
+function renderFindingSection(finding: Finding): string {
+  let section = `### ${finding.id} — ${finding.title}\n\n`;
+  section += `- **Severity**: ${finding.severity}\n`;
+  section += `- **Status**: ${finding.status}\n`;
+  section += `- **Location**: ${finding.location.file_path}:${finding.location.start_line}\n`;
+  section += `- **Tool**: ${finding.source.tool}\n`;
+  section += `- **Rule**: ${finding.source.rule_id}\n`;
+  section += renderOptionalFindingMetadata(finding);
+  section += `\n${finding.message}\n\n`;
+  section += renderFixSuggestion(finding);
+  return section;
+}
+
+/** Render optional finding metadata lines. */
+function renderOptionalFindingMetadata(finding: Finding): string {
+  let metadata = '';
+  if (finding.cwe_id) {
+    metadata += `- **CWE**: ${finding.cwe_id}\n`;
+  }
+  if (finding.is_duplicate) {
+    metadata += `- **Duplicate**: Yes (group ${finding.duplicate_group_id})\n`;
+  }
+  return metadata;
+}
+
+/** Render a finding fix suggestion when present. */
+function renderFixSuggestion(finding: Finding): string {
+  if (!finding.fix_suggestion) {
+    return '';
+  }
+
+  let suggestion = `**Fix Suggestion**: ${finding.fix_suggestion.description}\n`;
+  if (finding.fix_suggestion.code_example) {
+    suggestion += `\n\`\`\`${codeFenceLanguage(finding)}\n${finding.fix_suggestion.code_example}\n\`\`\`\n`;
+  }
+  return `${suggestion}\n`;
+}
+
+/** Infer the Markdown code fence language from the finding path. */
+function codeFenceLanguage(finding: Finding): string {
+  return finding.location.file_path.split('.').pop() ?? 'code';
 }
