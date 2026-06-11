@@ -17,8 +17,8 @@ before relying on findings as applicable to that workspace.
 Do not use `file_path`, `rule_id`, or stored scanner project keys as implicit
 current-project selectors. When current/latest platform data is requested,
 confirm the current repository/project with the user, synchronize the matching
-source with `findingbridge_sync_sources`, then read `findingbridge_summary` or
-`findingbridge_list_findings`.
+source or sources with `findingbridge_sync_sources`, then read
+`findingbridge_summary` or `findingbridge_list_findings`.
 
 ## findingbridge_list_findings
 
@@ -52,7 +52,8 @@ By default, stale or out-of-current-scope findings are excluded. Set
   current-project selector.
 - SonarCloud project keys belong in the discovery and synchronization flow:
   call `findingbridge_list_source_projects`, choose the matching project key,
-  then pass it to `findingbridge_sync_sources.project_keys[source_id]`.
+  then pass it to `findingbridge_sync_sources.project_keys[source_id]` when it
+  is not already saved on the source.
 - Empty results with filters mean no stored findings matched those filters. For
   current or latest scanner platform results, synchronize first before
   concluding the scanner platform has no findings.
@@ -370,11 +371,17 @@ Call this before reading current scanner platform results with
 }
 ```
 
-When `source_ids` is omitted, synchronization defaults to the current GitHub
-repository if the local `origin` remote matches one configured GitHub source.
-This avoids pulling every configured repository in multi-repository setups. Pass
-`all_sources: true` only when you intentionally want to synchronize every enabled
-source.
+When `source_ids` is omitted, synchronization defaults to inferred
+current-project sources. GitHub sources are included when the local `origin`
+remote matches their configured owner/repository. SonarCloud sources are included
+when they have a saved `project_key` or a per-call `project_keys[source_id]`
+override. SARIF path sources are not inferred from the current repository; select
+them explicitly with `source_ids`, make them the only enabled source, or pass
+`all_sources: true`.
+
+Pass `all_sources: true` only when you intentionally want to synchronize every
+enabled configured source, including sources that are not inferable as the
+current project.
 
 For SonarCloud sources without a saved `project_key`, first call
 `findingbridge_list_source_projects`, have the user confirm which discovered

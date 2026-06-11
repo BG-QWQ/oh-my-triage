@@ -40,6 +40,15 @@ include `organization`, MCP agents can pass it per call:
 }
 ```
 
+## Sync Behavior
+
+SonarCloud cannot be matched reliably from a GitHub remote alone. Default
+synchronization can include a SonarCloud source as an inferred current-project
+source only when the source has a saved `project_key` or the sync call passes a
+matching `project_keys[source_id]` override. Use
+`findingbridge_list_source_projects` to discover the project key when it is not
+already saved.
+
 ## Data Retrieved
 
 - SonarCloud issues
