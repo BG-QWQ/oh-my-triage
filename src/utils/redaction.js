@@ -2,7 +2,7 @@
 export function redactSecrets(text) {
     let redacted = text;
     // Redact API tokens and keys
-    redacted = redacted.replace(/\b(sk-[a-zA-Z0-9]{20,}|gh[pousr]_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|glpat-[a-zA-Z0-9-]{20,}|\b[0-9a-f]{40}\b)\b/gi, '***REDACTED***');
+    redacted = redacted.replace(/\b(sk-[a-z0-9]{20,}|gh[pousr]_[a-z0-9]{36}|gho_[a-z0-9]{36}|glpat-[a-z0-9-]{20,}|\b[0-9a-f]{40}\b)\b/gi, '***REDACTED***');
     // Redact authorization headers
     redacted = redacted.replace(/(Authorization:\s*(Bearer|Basic|Token)\s+)[^\s]+/gi, '$1***REDACTED***');
     // Redact password-like strings

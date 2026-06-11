@@ -4,7 +4,7 @@ export function redactSecrets(text: string): string {
 
   // Redact API tokens and keys
   redacted = redacted.replace(
-    /\b(sk-[a-zA-Z0-9]{20,}|gh[pousr]_[a-zA-Z0-9]{36}|gho_[a-zA-Z0-9]{36}|glpat-[a-zA-Z0-9-]{20,}|\b[0-9a-f]{40}\b)\b/gi,
+    /\b(sk-[a-z0-9]{20,}|gh[pousr]_[a-z0-9]{36}|gho_[a-z0-9]{36}|glpat-[a-z0-9-]{20,}|\b[0-9a-f]{40}\b)\b/gi,
     '***REDACTED***'
   );
 
