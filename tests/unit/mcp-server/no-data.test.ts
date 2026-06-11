@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type Database from 'better-sqlite3';
 import { closeConnection, createConnection } from '@/database/connection.js';
 import { FindingRepository } from '@/database/repositories/finding-repo.js';
@@ -11,6 +12,7 @@ import { syncSourcesTool } from '@/mcp-server/tools/sync-sources.js';
 import { getFindingDetailTool } from '@/mcp-server/tools/get-finding-detail.js';
 import { generateReportTool } from '@/mcp-server/tools/generate-report.js';
 import { deduplicateFindingsTool } from '@/mcp-server/tools/deduplicate-findings.js';
+import { registerTriageWorkflowPrompt } from '@/mcp-server/prompts/triage-workflow.js';
 import type { FindingBridgeToolEnvelope } from '@/mcp-server/tool-result.js';
 import type { FindingBridgeMcpContext } from '@/mcp-server/context.js';
 import type { Finding } from '@/core/models/finding.js';
@@ -365,8 +367,8 @@ describe('MCP no-data responses', () => {
       database_modified: false,
       recommended_next_steps: [
         'For SonarCloud, provide organizations[source_id] when the source configuration does not include an organization.',
-        'Choose the project key that matches the current repository.',
-        'Call findingbridge_sync_sources with project_keys: { [source_id]: selected_project_key } to sync without editing configuration.',
+        'Choose every discovered project key that matches the current workspace repository across configured scanner sources.',
+        'Call findingbridge_sync_sources without source_ids and pass project_keys: { [source_id]: selected_project_keys[source_id] } for each matching source that needs a key.',
       ],
     });
     expect(data.results).toEqual([
@@ -376,6 +378,27 @@ describe('MCP no-data responses', () => {
         next_steps: [expect.stringContaining('findingbridge config set-token sonarcloud')],
       }),
     ]);
+  });
+
+  it('guides agents to omit source_ids for current-workspace multi-scanner sync', () => {
+    type PromptResult = { messages: Array<{ content: { type: string; text: string } }> };
+    type PromptHandler = () => PromptResult;
+    let promptHandler: PromptHandler | undefined;
+    const server = {
+      registerPrompt: (_name: string, _metadata: unknown, handler: PromptHandler): void => {
+        promptHandler = handler;
+      },
+    } as unknown as McpServer;
+
+    registerTriageWorkflowPrompt(server);
+    if (!promptHandler) {
+      throw new Error('Expected triage prompt registration.');
+    }
+    const prompt = promptHandler().messages[0]?.content.text ?? '';
+
+    expect(prompt).toContain('omit source_ids');
+    expect(prompt).toContain('all scanner sources for the confirmed current workspace repository');
+    expect(prompt).toContain('project_keys for every confirmed matching scanner source');
   });
 });
 

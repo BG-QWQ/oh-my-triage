@@ -158,7 +158,7 @@ export function registerFindingBridgeTools(
     {
       title: 'List Source Projects',
       description:
-        'List projects visible to configured scanner source credentials, such as SonarCloud project keys. The MCP server cannot reliably auto-detect the client workspace; have the user confirm which discovered scanner project matches the current repository before passing it to synchronization. SonarCloud discovery is organization-scoped; pass organizations[source_id] when the source config lacks an organization. Use this when synchronization needs a project_key before reading current platform findings.',
+        'List projects visible to configured scanner source credentials, such as SonarCloud project keys. The MCP server cannot reliably auto-detect the client workspace; have the user confirm every discovered scanner project that matches the current repository across configured sources before synchronization. SonarCloud discovery is organization-scoped; pass organizations[source_id] when the source config lacks an organization. Use this when synchronization needs project_keys before reading current platform findings, then call findingbridge_sync_sources without source_ids and pass a complete project_keys map for all matching sources that need keys.',
       inputSchema: ListSourceProjectsInputSchema.shape,
       annotations: { ...READ_ONLY_TOOL_ANNOTATIONS, title: 'List Source Projects', openWorldHint: true },
     },
@@ -170,7 +170,7 @@ export function registerFindingBridgeTools(
     {
       title: 'Sync Scanner Sources',
       description:
-        'Synchronize configured scanner sources into the local FindingBridge database. Confirm the current workspace repository/project with the user before choosing source_ids, project_keys, or all_sources. When source_ids is omitted, FindingBridge syncs inferred current-project sources: GitHub sources matching the current origin remote and SonarCloud sources with saved or per-call project_keys[source_id]. Use all_sources only when intentionally syncing every enabled source. This may call scanner APIs and write findings to FindingBridge storage, but it never modifies user repositories.',
+        'Synchronize configured scanner sources into the local FindingBridge database. For current workspace repository results, prefer omitting source_ids: FindingBridge will sync all inferred current-project sources, including GitHub sources matching the current origin remote and SonarCloud sources with saved or per-call project_keys[source_id]. Pass project_keys for every confirmed matching scanner source that needs a project key. Use source_ids only when the user explicitly asks for specific sources, and use all_sources only when intentionally syncing every enabled source. This may call scanner APIs and write findings to FindingBridge storage, but it never modifies user repositories.',
       inputSchema: SyncSourcesInputSchema.shape,
       annotations: { ...LOCAL_WRITE_TOOL_ANNOTATIONS, title: 'Sync Scanner Sources' },
     },

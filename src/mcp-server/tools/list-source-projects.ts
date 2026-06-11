@@ -31,8 +31,8 @@ export async function listSourceProjectsTool(
       database_modified: false,
       recommended_next_steps: [
         'For SonarCloud, provide organizations[source_id] when the source configuration does not include an organization.',
-        'Choose the project key that matches the current repository.',
-        'Call findingbridge_sync_sources with project_keys: { [source_id]: selected_project_key } to sync without editing configuration.',
+        'Choose every discovered project key that matches the current workspace repository across configured scanner sources.',
+        'Call findingbridge_sync_sources without source_ids and pass project_keys: { [source_id]: selected_project_keys[source_id] } for each matching source that needs a key.',
       ],
     });
   } catch (error: unknown) {
