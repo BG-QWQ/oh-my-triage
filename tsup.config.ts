@@ -1,5 +1,5 @@
 import { defineConfig } from 'tsup';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -33,7 +33,9 @@ export default defineConfig({
 
     // Compile web-ui TypeScript files to JavaScript for browser
     try {
-      execSync('npx tsc -p tsconfig.web.json', { stdio: 'inherit' });
+      execFileSync(process.execPath, [join('node_modules', 'typescript', 'bin', 'tsc'), '-p', 'tsconfig.web.json'], {
+        stdio: 'inherit',
+      });
       
       // Clean up extra compiled output
       const srcDir = join('dist', 'web-ui', 'src');
