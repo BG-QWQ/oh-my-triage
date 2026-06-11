@@ -144,10 +144,11 @@
         </div>
 
         <div class="form-group">
-          <label for="github-repo">Repository</label>
-          <select id="github-repo">
-            <option value="">Select an organization first</option>
-          </select>
+          <label>Repositories</label>
+          <div id="github-repo-list" class="multi-select-list" aria-live="polite">
+            <p class="form-hint">Select an owner after testing the connection to choose repositories.</p>
+          </div>
+          <p class="form-hint" id="github-repo-count">0 repositories selected.</p>
         </div>
       </section>
 
