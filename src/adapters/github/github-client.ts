@@ -8,8 +8,8 @@ const REQUIRED_SCOPES = ['security_events'];
 /** Configuration for GitHub REST API access. */
 export type GitHubClientOptions = {
   token: string;
-  owner: string;
-  repo: string;
+  owner?: string;
+  repo?: string;
   apiBaseUrl?: string;
 };
 
@@ -22,8 +22,8 @@ export type GitHubConnectionValidation = {
 /** Minimal GitHub Code Scanning REST client with validated pagination. */
 export class GitHubClient {
   private readonly token: string;
-  private readonly owner: string;
-  private readonly repo: string;
+  private readonly owner?: string;
+  private readonly repo?: string;
   private readonly apiBaseUrl: string;
 
   constructor(options: GitHubClientOptions) {
@@ -33,9 +33,11 @@ export class GitHubClient {
     this.apiBaseUrl = options.apiBaseUrl ?? GITHUB_API_BASE;
   }
 
-  /** Validate that the token can access the configured repository and has scanner scopes when GitHub reports them. */
+  /** Validate the token and, when configured, repository access without exposing credentials. */
   async validateConnection(): Promise<GitHubConnectionValidation> {
-    const response = await this.request(`/repos/${encodeURIComponent(this.owner)}/${encodeURIComponent(this.repo)}`);
+    const response = this.owner && this.repo
+      ? await this.request(`/repos/${encodeURIComponent(this.owner)}/${encodeURIComponent(this.repo)}`)
+      : await this.request('/user');
     const observedScopes = parseScopes(response.headers.get('x-oauth-scopes'));
     const missingScopes = missingRequiredScopes(observedScopes, REQUIRED_SCOPES);
     if (observedScopes.length > 0 && missingScopes.length > 0) {
@@ -56,6 +58,14 @@ export class GitHubClient {
   /** Fetch one page of Code Scanning alerts with per_page fixed at 100. */
   async listCodeScanningAlerts(page: number): Promise<GitHubCodeScanningAlertPage> {
     try {
+      if (!this.owner || !this.repo) {
+        throw new FindingBridgeError({
+          code: ErrorCodes.CONFIG_INVALID,
+          message: 'GitHub Code Scanning sync requires repository owner and name.',
+          nextSteps: ['Run FindingBridge setup and select a GitHub repository before syncing findings.'],
+          retryable: false,
+        });
+      }
       const response = await this.request(
         `/repos/${encodeURIComponent(this.owner)}/${encodeURIComponent(this.repo)}/code-scanning/alerts?per_page=100&page=${page}`
       );
