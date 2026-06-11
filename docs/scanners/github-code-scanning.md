@@ -15,7 +15,15 @@
 
 ```bash
 findingbridge setup
-# Select "GitHub Code Scanning" and paste token
+# Select "GitHub Code Scanning", paste token, test the connection,
+# then choose the repository owner and repository from the discovered list.
+```
+
+For headless systems, the CLI fallback prompts for the same repository coordinates:
+
+```bash
+findingbridge setup --cli
+# Enter the GitHub token, repository owner or organization, and repository name.
 ```
 
 Or set directly:
@@ -41,6 +49,7 @@ If permissions are missing, the setup wizard shows:
 ## Data Retrieved
 
 - Code scanning alerts
+- Repository metadata needed to populate setup owner/repository selectors
 - Alert locations (file, line, column)
 - Rule metadata (severity, description, CWE)
 - Alert state (open, dismissed, fixed)
