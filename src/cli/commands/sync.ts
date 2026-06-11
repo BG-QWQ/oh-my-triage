@@ -17,7 +17,7 @@ export function createSyncCommand(): Command {
   return new Command('sync')
     .description('Synchronize findings from configured scanner sources into the local database')
     .option('--source <id>', 'Source identifier to sync; repeat for multiple sources', collectSource, [])
-    .option('--all', 'Synchronize every enabled source instead of the current repository source')
+    .option('--all', 'Synchronize every enabled source instead of inferred current-project sources')
     .option('--db <path>', 'Path to SQLite database')
     .option('-c, --config <path>', 'Configuration file path')
     .option('--max-pages <number>', 'Maximum pages to fetch per source', String(20))

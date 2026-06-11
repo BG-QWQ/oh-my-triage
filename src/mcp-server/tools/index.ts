@@ -170,7 +170,7 @@ export function registerFindingBridgeTools(
     {
       title: 'Sync Scanner Sources',
       description:
-        'Synchronize configured scanner sources into the local FindingBridge database. Confirm the current workspace repository/project with the user before choosing source_ids, project_keys, or all_sources. For SonarCloud sources missing project_key, pass a per-call project_keys[source_id] override discovered by findingbridge_list_source_projects; overrides are not persisted. This may call scanner APIs and write findings to FindingBridge storage, but it never modifies user repositories.',
+        'Synchronize configured scanner sources into the local FindingBridge database. Confirm the current workspace repository/project with the user before choosing source_ids, project_keys, or all_sources. When source_ids is omitted, FindingBridge syncs inferred current-project sources: GitHub sources matching the current origin remote and SonarCloud sources with saved or per-call project_keys[source_id]. Use all_sources only when intentionally syncing every enabled source. This may call scanner APIs and write findings to FindingBridge storage, but it never modifies user repositories.',
       inputSchema: SyncSourcesInputSchema.shape,
       annotations: { ...LOCAL_WRITE_TOOL_ANNOTATIONS, title: 'Sync Scanner Sources' },
     },
