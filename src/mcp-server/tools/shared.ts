@@ -23,6 +23,7 @@ export interface FindingSummary {
   cwe_id?: string;
   priority_score: number;
   is_duplicate: boolean;
+  is_stale: boolean;
   duplicate_group_id?: string;
   last_seen_at: string;
 }
@@ -97,8 +98,11 @@ export function findingDataAvailability(totalFindings: number): FindingBridgeDat
 }
 
 /** Detect demo, stale, or unconfigured finding provenance for MCP responses. */
-export function findingProvenanceWarnings(context: FindingBridgeMcpContext): FindingBridgeProvenanceWarning[] {
-  const observedTools = context.findings.listTools();
+export function findingProvenanceWarnings(
+  context: FindingBridgeMcpContext,
+  options: { includeStale?: boolean } = {}
+): FindingBridgeProvenanceWarning[] {
+  const observedTools = context.findings.listTools({ includeStale: options.includeStale });
   const redactedObservedTools = observedTools.map((tool) => redactSecrets(tool));
   if (observedTools.length === 0) {
     return [];
@@ -206,6 +210,7 @@ export function summarizeFinding(finding: Finding): FindingSummary {
     cwe_id: finding.cwe_id,
     priority_score: finding.priority_score,
     is_duplicate: finding.is_duplicate,
+    is_stale: finding.is_stale ?? false,
     duplicate_group_id: finding.duplicate_group_id,
     last_seen_at: finding.last_seen_at,
   };
@@ -217,8 +222,16 @@ export function summarizeFinding(finding: Finding): FindingSummary {
  * Tool handlers use this to keep not-found responses structured and actionable
  * instead of surfacing repository implementation details.
  */
-export function getFinding(context: FindingBridgeMcpContext, findingId: string): Finding | undefined {
-  return context.findings.getById(findingId);
+export function getFinding(
+  context: FindingBridgeMcpContext,
+  findingId: string,
+  options: { includeStale?: boolean } = {}
+): Finding | undefined {
+  const finding = context.findings.getById(findingId);
+  if (!finding || options.includeStale) {
+    return finding;
+  }
+  return finding.is_stale || finding.is_current_scope === false ? undefined : finding;
 }
 
 /**
@@ -249,11 +262,12 @@ export function listFindingsForScope(
     tool?: string[];
     status?: Finding['status'][];
     file_path?: string;
+    include_stale?: boolean;
   }
 ): Finding[] {
   if (scope.finding_ids?.length) {
     return scope.finding_ids
-      .map((findingId) => context.findings.getById(findingId))
+      .map((findingId) => getFinding(context, findingId, { includeStale: scope.include_stale }))
       .filter((finding): finding is Finding => finding !== undefined);
   }
 
@@ -265,6 +279,7 @@ export function listFindingsForScope(
     limit: MAX_SCOPE_LIMIT,
     offset: 0,
     sort_by: 'priority_score',
+    includeStale: scope.include_stale,
   }).findings;
 }
 

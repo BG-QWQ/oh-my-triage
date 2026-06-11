@@ -16,10 +16,11 @@ export function getFindingDetailTool(
   input: GetFindingDetailInput
 ): CallToolResult {
   try {
-    const finding = getFinding(context, input.finding_id);
+    const finding = getFinding(context, input.finding_id, { includeStale: input.include_stale });
     if (!finding) {
       return toolError('finding_not_found', `Finding '${input.finding_id}' was not found.`, [
         'Call findingbridge_list_findings to discover valid finding IDs.',
+        'If you intentionally need historical findings, retry with include_stale set to true.',
         'Re-run ingestion if the finding should exist but is missing.',
       ]);
     }

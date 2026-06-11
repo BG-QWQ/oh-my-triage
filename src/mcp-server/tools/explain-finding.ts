@@ -16,10 +16,11 @@ export function explainFindingTool(
   input: ExplainFindingInput
 ): CallToolResult {
   try {
-    const finding = getFinding(context, input.finding_id);
+    const finding = getFinding(context, input.finding_id, { includeStale: input.include_stale });
     if (!finding) {
       return toolError('finding_not_found', `Finding '${input.finding_id}' was not found.`, [
         'Call findingbridge_list_findings to discover valid finding IDs.',
+        'If you intentionally need historical findings, retry with include_stale set to true.',
       ]);
     }
 
@@ -38,7 +39,7 @@ export function explainFindingTool(
           `${finding.severity.toUpperCase()} severity finding${taxonomy ? ` associated with ${taxonomy}` : ''}. ${audienceNote}`
         ),
         likely_cause: redactSecrets(
-          finding.message || rule?.name || 'The scanner matched this location to a known rule pattern.'
+          finding.message ?? rule?.name ?? 'The scanner matched this location to a known rule pattern.'
         ),
         affected_area: {
           file_path: redactSecrets(finding.location.file_path),

@@ -20,6 +20,7 @@ export const ListFindingsInputSchema = z.object({
   limit: z.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
   offset: z.number().int().min(0).default(0),
   sort_by: z.enum(['severity', 'date', 'priority_score']).default('priority_score'),
+  include_stale: z.boolean().default(false),
 });
 
 /**
@@ -32,6 +33,7 @@ export const GetFindingDetailInputSchema = z.object({
   finding_id: z.string().min(1),
   include_code_context: z.boolean().default(true),
   context_lines: z.number().int().min(0).max(20).default(20),
+  include_stale: z.boolean().default(false),
 });
 
 /**
@@ -44,6 +46,7 @@ export const ExplainFindingInputSchema = z.object({
   finding_id: z.string().min(1),
   audience: z.enum(['developer', 'security', 'manager']).default('developer'),
   language: z.string().min(2).default('en'),
+  include_stale: z.boolean().default(false),
 });
 
 /**
@@ -55,6 +58,7 @@ export const ExplainFindingInputSchema = z.object({
 export const SuggestFixInputSchema = z.object({
   finding_id: z.string().min(1),
   approach: z.enum(['minimal', 'robust', 'educational']).default('minimal'),
+  include_stale: z.boolean().default(false),
 });
 
 /**
@@ -79,6 +83,7 @@ export const PrioritizeFindingsInputSchema = z.object({
       business_critical_paths: z.array(z.string().min(1)).optional(),
     })
     .default({}),
+  include_stale: z.boolean().default(false),
 });
 
 /**
@@ -94,6 +99,7 @@ export const DeduplicateFindingsInputSchema = z.object({
       tool: z.array(z.string().min(1)).optional(),
       status: z.array(FindingStatus).optional(),
       file_path: z.string().min(1).optional(),
+      include_stale: z.boolean().default(false),
     })
     .default({}),
   dry_run: z.boolean().default(true),
@@ -114,6 +120,7 @@ export const GenerateReportInputSchema = z.object({
       status: z.array(FindingStatus).optional(),
       tool: z.array(z.string().min(1)).optional(),
       file_path: z.string().min(1).optional(),
+      include_stale: z.boolean().default(false),
     })
     .default({}),
   include_recommendations: z.boolean().default(true),
@@ -144,12 +151,26 @@ export const ListSourceProjectsInputSchema = z.object({
   max_pages: z.number().int().min(1).max(50).default(10),
 });
 
-export type ListFindingsInput = z.infer<typeof ListFindingsInputSchema>;
-export type GetFindingDetailInput = z.infer<typeof GetFindingDetailInputSchema>;
-export type ExplainFindingInput = z.infer<typeof ExplainFindingInputSchema>;
-export type SuggestFixInput = z.infer<typeof SuggestFixInputSchema>;
-export type PrioritizeFindingsInput = z.infer<typeof PrioritizeFindingsInputSchema>;
-export type DeduplicateFindingsInput = z.infer<typeof DeduplicateFindingsInputSchema>;
-export type GenerateReportInput = z.infer<typeof GenerateReportInputSchema>;
+export type ListFindingsInput = Omit<z.infer<typeof ListFindingsInputSchema>, 'include_stale'> & {
+  include_stale?: boolean;
+};
+export type GetFindingDetailInput = Omit<z.infer<typeof GetFindingDetailInputSchema>, 'include_stale'> & {
+  include_stale?: boolean;
+};
+export type ExplainFindingInput = Omit<z.infer<typeof ExplainFindingInputSchema>, 'include_stale'> & {
+  include_stale?: boolean;
+};
+export type SuggestFixInput = Omit<z.infer<typeof SuggestFixInputSchema>, 'include_stale'> & {
+  include_stale?: boolean;
+};
+export type PrioritizeFindingsInput = Omit<z.infer<typeof PrioritizeFindingsInputSchema>, 'include_stale'> & {
+  include_stale?: boolean;
+};
+export type DeduplicateFindingsInput = Omit<z.infer<typeof DeduplicateFindingsInputSchema>, 'scope'> & {
+  scope: Omit<z.infer<typeof DeduplicateFindingsInputSchema>['scope'], 'include_stale'> & { include_stale?: boolean };
+};
+export type GenerateReportInput = Omit<z.infer<typeof GenerateReportInputSchema>, 'scope'> & {
+  scope: Omit<z.infer<typeof GenerateReportInputSchema>['scope'], 'include_stale'> & { include_stale?: boolean };
+};
 export type SyncSourcesInput = z.infer<typeof SyncSourcesInputSchema>;
 export type ListSourceProjectsInput = z.infer<typeof ListSourceProjectsInputSchema>;

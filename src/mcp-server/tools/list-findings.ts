@@ -24,6 +24,7 @@ export function listFindingsTool(
       limit: input.limit,
       offset: input.offset,
       sort_by: input.sort_by,
+      includeStale: input.include_stale ?? false,
     });
 
     return toolSuccess({
@@ -32,7 +33,7 @@ export function listFindingsTool(
       has_findings: result.total > 0,
       data_availability: findingDataAvailability(result.total),
       scope: globalFindingScope(),
-      provenance_warnings: findingProvenanceWarnings(context),
+      provenance_warnings: findingProvenanceWarnings(context, { includeStale: input.include_stale ?? false }),
       pagination: {
         total: result.total,
         limit: input.limit,
@@ -46,6 +47,7 @@ export function listFindingsTool(
         rule_id: input.rule_id ?? null,
         file_path: input.file_path ?? null,
         sort_by: input.sort_by,
+        include_stale: input.include_stale ?? false,
       },
     });
   } catch (error: unknown) {

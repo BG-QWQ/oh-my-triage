@@ -17,7 +17,7 @@ export function prioritizeFindingsTool(
 ): CallToolResult {
   try {
     const findings = input.finding_ids
-      .map((findingId) => getFinding(context, findingId))
+      .map((findingId) => getFinding(context, findingId, { includeStale: input.include_stale }))
       .filter((finding) => finding !== undefined);
     const foundIds = new Set(findings.map((finding) => finding.id));
     const missing_ids = input.finding_ids.filter((findingId) => !foundIds.has(findingId));
