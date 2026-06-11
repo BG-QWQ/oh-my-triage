@@ -27,6 +27,20 @@ List findings with optional filtering and pagination.
 By default, stale or out-of-current-scope findings are excluded. Set
 `include_stale: true` only when intentionally reviewing historical findings.
 
+### Filter Semantics
+
+- `rule_id` is an exact scanner rule ID match, such as `js/sql-injection` or
+  `python:S3776`; it is not a prefix or fuzzy search.
+- `file_path` matches normalized stored finding locations, such as `src/db.ts`
+  or `ensemble.py`; it is not a repository name, scanner project key, or
+  current-project selector.
+- SonarCloud project keys belong in the discovery and synchronization flow:
+  call `findingbridge_list_source_projects`, choose the matching project key,
+  then pass it to `findingbridge_sync_sources.project_keys[source_id]`.
+- Empty results with filters mean no stored findings matched those filters. For
+  current or latest scanner platform results, synchronize first before
+  concluding the scanner platform has no findings.
+
 ### Output Schema
 
 ```json
