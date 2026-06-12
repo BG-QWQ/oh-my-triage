@@ -1,0 +1,144 @@
+name: Build release artifacts
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  build-artifacts:
+    name: Build ${{ matrix.label }} artifact
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: Linux
+            artifact_suffix: linux-x64
+            archive_extension: tar.gz
+          - os: macos-latest
+            label: macOS
+            artifact_suffix: macos
+            archive_extension: tar.gz
+          - os: windows-latest
+            label: Windows
+            artifact_suffix: windows-x64
+            archive_extension: zip
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Run typecheck
+        run: npm run typecheck
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build package
+        run: npm run build
+
+      - name: Prune development dependencies
+        run: npm prune --omit=dev
+
+      - name: Stage release bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packageName = "findingbridge-${{ github.event.release.tag_name }}-${{ matrix.artifact_suffix }}"
+          $stageRoot = Join-Path $env:RUNNER_TEMP $packageName
+          New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
+          New-Item -ItemType Directory -Path (Join-Path $stageRoot 'bin') -Force | Out-Null
+
+          foreach ($path in @('dist', 'demo-data', 'release-assets', 'node_modules')) {
+            Copy-Item -LiteralPath $path -Destination $stageRoot -Recurse -Force
+          }
+
+          foreach ($file in @('package.json', 'README.md', 'README-QUICKSTART.md', 'LICENSE')) {
+            Copy-Item -LiteralPath $file -Destination $stageRoot -Force
+          }
+
+          $nodePath = node -p "process.execPath"
+          if ($IsWindows) {
+            Copy-Item -LiteralPath $nodePath -Destination (Join-Path $stageRoot 'bin/node.exe') -Force
+            @(
+              '@echo off',
+              '"%~dp0bin\node.exe" "%~dp0dist\cli\index.js" %*'
+            ) | Set-Content -LiteralPath (Join-Path $stageRoot 'findingbridge.cmd') -Encoding ASCII
+          } else {
+            Copy-Item -LiteralPath $nodePath -Destination (Join-Path $stageRoot 'bin/node') -Force
+            @(
+              '#!/usr/bin/env sh',
+              'DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"',
+              'exec "$DIR/bin/node" "$DIR/dist/cli/index.js" "$@"'
+            ) | Set-Content -LiteralPath (Join-Path $stageRoot 'findingbridge') -Encoding UTF8
+            chmod +x (Join-Path $stageRoot 'findingbridge')
+            chmod +x (Join-Path $stageRoot 'bin/node')
+          }
+
+          "PACKAGE_NAME=$packageName" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "STAGE_ROOT=$stageRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Smoke-test staged launcher
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($IsWindows) {
+            & (Join-Path $env:STAGE_ROOT 'findingbridge.cmd') --help
+          } else {
+            & (Join-Path $env:STAGE_ROOT 'findingbridge') --help
+          }
+
+      - name: Create archive and checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $artifactDir = Join-Path $env:RUNNER_TEMP 'release-artifacts'
+          New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
+          $archivePath = Join-Path $artifactDir "$env:PACKAGE_NAME.${{ matrix.archive_extension }}"
+          $checksumPath = "$archivePath.sha256"
+
+          if ($IsWindows) {
+            Compress-Archive -LiteralPath $env:STAGE_ROOT -DestinationPath $archivePath -Force
+          } else {
+            $parent = Split-Path -Parent $env:STAGE_ROOT
+            $leaf = Split-Path -Leaf $env:STAGE_ROOT
+            tar -czf $archivePath -C $parent $leaf
+          }
+
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $fileName = Split-Path -Leaf $archivePath
+          "$hash  $fileName" | Set-Content -LiteralPath $checksumPath -Encoding ASCII
+          "ARCHIVE_PATH=$archivePath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "CHECKSUM_PATH=$checksumPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+          path: |
+            ${{ env.ARCHIVE_PATH }}
+            ${{ env.CHECKSUM_PATH }}
+          if-no-files-found: error
+
+      - name: Upload files to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.ARCHIVE_PATH }}
+            ${{ env.CHECKSUM_PATH }}
