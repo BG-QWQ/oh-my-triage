@@ -465,18 +465,9 @@ describe('SourceSyncService', () => {
 
   it('defaults multi-source sync to all inferable current-project sources', async () => {
     const config = createConfig(currentProjectSources());
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () => new StaticSonarCloudProjectClient([]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
     });
 
     const result = await service.syncSources();
@@ -492,30 +483,15 @@ describe('SourceSyncService', () => {
   it('infers a SonarCloud project key from a unique exact current repository match', async () => {
     const config = createConfig([
       ...gitHubSources(),
-      {
-        id: 'sonarcloud-web',
-        type: 'sonarcloud',
-        enabled: true,
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
-      },
+      sonarCloudSource(),
     ]);
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () =>
-        new StaticSonarCloudProjectClient([
-          { key: 'acme_web', name: 'web' },
-          { key: 'acme_api', name: 'api' },
-        ]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
+      projects: [
+        { key: 'acme_web', name: 'web' },
+        { key: 'acme_api', name: 'api' },
+      ],
     });
 
     const result = await service.syncSources();
@@ -529,26 +505,13 @@ describe('SourceSyncService', () => {
   it('infers a SonarCloud project key from a unique normalized owner and repository match', async () => {
     const config = createConfig([
       ...gitHubSources(),
-      {
-        id: 'sonarcloud-web',
-        type: 'sonarcloud',
-        enabled: true,
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
-      },
+      sonarCloudSource(),
     ]);
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'ACME', repo: 'web-ui' }),
-      createSonarCloudClient: () => new StaticSonarCloudProjectClient([{ key: 'ACME_web-ui', name: 'Web UI' }]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
+      repository: { owner: 'ACME', repo: 'web-ui' },
+      projects: [{ key: 'ACME_web-ui', name: 'Web UI' }],
     });
 
     const result = await service.syncSources();
@@ -559,27 +522,11 @@ describe('SourceSyncService', () => {
   });
 
   it('infers a SonarCloud project key for a single enabled unconfigured source', async () => {
-    const config = createConfig([
-      {
-        id: 'sonarcloud-web',
-        type: 'sonarcloud',
-        enabled: true,
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
-      },
-    ]);
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const config = createConfig([sonarCloudSource()]);
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () => new StaticSonarCloudProjectClient([{ key: 'acme_web', name: 'web' }]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
+      projects: [{ key: 'acme_web', name: 'web' }],
     });
 
     const result = await service.syncSources();
@@ -590,27 +537,10 @@ describe('SourceSyncService', () => {
   });
 
   it('skips a single enabled unconfigured SonarCloud source when no project match is found', async () => {
-    const config = createConfig([
-      {
-        id: 'sonarcloud-web',
-        type: 'sonarcloud',
-        enabled: true,
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
-      },
-    ]);
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const config = createConfig([sonarCloudSource()]);
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () => new StaticSonarCloudProjectClient([]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
     });
 
     const result = await service.syncSources();
@@ -626,30 +556,15 @@ describe('SourceSyncService', () => {
   it('skips ambiguous SonarCloud current repository matches instead of fuzzy auto-syncing', async () => {
     const config = createConfig([
       ...gitHubSources(),
-      {
-        id: 'sonarcloud-web',
-        type: 'sonarcloud',
-        enabled: true,
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
-      },
+      sonarCloudSource(),
     ]);
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () =>
-        new StaticSonarCloudProjectClient([
-          { key: 'acme_web', name: 'web' },
-          { key: 'acme-web', name: 'Web' },
-        ]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
+      projects: [
+        { key: 'acme_web', name: 'web' },
+        { key: 'acme-web', name: 'Web' },
+      ],
     });
 
     const result = await service.syncSources();
@@ -665,26 +580,12 @@ describe('SourceSyncService', () => {
   it('skips SonarCloud inference when project discovery is truncated', async () => {
     const config = createConfig([
       ...gitHubSources(),
-      {
-        id: 'sonarcloud-web',
-        type: 'sonarcloud',
-        enabled: true,
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
-      },
+      sonarCloudSource(),
     ]);
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () => new StaticSonarCloudProjectClient([[{ key: 'acme_web', name: 'web' }], []]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
+      projects: [[{ key: 'acme_web', name: 'web' }], []],
     });
 
     const result = await service.syncSources({ maxPages: 1 });
@@ -701,30 +602,15 @@ describe('SourceSyncService', () => {
   it('skips SonarCloud inference when matching projects appear across multiple pages', async () => {
     const config = createConfig([
       ...gitHubSources(),
-      {
-        id: 'sonarcloud-web',
-        type: 'sonarcloud',
-        enabled: true,
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
-      },
+      sonarCloudSource(),
     ]);
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () =>
-        new StaticSonarCloudProjectClient([
-          [{ key: 'acme_web', name: 'web' }],
-          [{ key: 'acme-web', name: 'Web' }],
-        ]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
+      projects: [
+        [{ key: 'acme_web', name: 'web' }],
+        [{ key: 'acme-web', name: 'Web' }],
+      ],
     });
 
     const result = await service.syncSources({ maxPages: 2 });
@@ -741,26 +627,13 @@ describe('SourceSyncService', () => {
     const config = createConfig([
       ...gitHubSources(),
       {
-        id: 'sonarcloud-web',
-        type: 'sonarcloud',
-        enabled: true,
+        ...sonarCloudSource(),
         project_key: ' ',
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
       },
     ]);
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () => new StaticSonarCloudProjectClient([]),
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
     });
 
     const result = await service.syncSources({ projectKeys: { 'sonarcloud-web': 'acme_web' } });
@@ -773,20 +646,10 @@ describe('SourceSyncService', () => {
 
   it('keeps explicit source IDs as an exact allowlist over inferred current-project sources', async () => {
     const config = createConfig(currentProjectSources());
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () => {
-        throw new Error('Source ID allowlist should not infer SonarCloud projects.');
-      },
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
+      discoveryFailureMessage: 'Source ID allowlist should not infer SonarCloud projects.',
     });
 
     const result = await service.syncSources({ sourceIds: ['sonarcloud-web'] });
@@ -797,20 +660,10 @@ describe('SourceSyncService', () => {
 
   it('syncs all configured sources only when allSources is explicit', async () => {
     const config = createConfig(currentProjectSources());
-    const observedSources: SourceConfig[] = [];
-    const service = new SourceSyncService({
+    const { observedSources, service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'web' }),
-      createSonarCloudClient: () => {
-        throw new Error('allSources should not infer SonarCloud projects.');
-      },
-      createAdapter: async (source) => {
-        observedSources.push(source);
-        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
-      },
+      discoveryFailureMessage: 'allSources should not infer SonarCloud projects.',
     });
 
     const result = await service.syncSources({ allSources: true });
@@ -829,12 +682,8 @@ describe('SourceSyncService', () => {
     const config = createConfig([
       ...gitHubSources(),
       {
-        id: 'sonarcloud-unconfigured',
-        type: 'sonarcloud',
-        enabled: true,
+        ...sonarCloudSource({ id: 'sonarcloud-unconfigured' }),
         project_key: ' ',
-        token_ref: 'sonarcloud',
-        options: { organization: 'acme' },
       },
       {
         id: 'sarif-web',
@@ -844,14 +693,10 @@ describe('SourceSyncService', () => {
         options: {},
       },
     ]);
-    const service = new SourceSyncService({
+    const { service } = createObservedSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => ({ owner: 'acme', repo: 'mobile' }),
-      createSonarCloudClient: () => new StaticSonarCloudProjectClient([]),
-      createAdapter: async () => new StaticAdapter([createFinding()]),
+      repository: { owner: 'acme', repo: 'mobile' },
     });
 
     const result = await service.syncSources();
@@ -921,6 +766,47 @@ function currentProjectSources(): SourceConfig[] {
       options: {},
     },
   ];
+}
+
+function sonarCloudSource(overrides: Partial<SourceConfig> = {}): SourceConfig {
+  return {
+    id: 'sonarcloud-web',
+    type: 'sonarcloud',
+    enabled: true,
+    token_ref: 'sonarcloud',
+    options: { organization: 'acme' },
+    ...overrides,
+  };
+}
+
+function createObservedSyncService(options: {
+  db: Database.Database;
+  config: Config;
+  repository?: { owner: string; repo: string };
+  projects?: Array<{ key: string; name: string; project?: string }> | Array<Array<{ key: string; name: string; project?: string }>>;
+  discoveryFailureMessage?: string;
+}): { observedSources: SourceConfig[]; service: SourceSyncService } {
+  const observedSources: SourceConfig[] = [];
+  return {
+    observedSources,
+    service: new SourceSyncService({
+      db: options.db,
+      config: options.config,
+      databasePath: ':memory:',
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      detectCurrentGitHubRepository: async () => options.repository ?? { owner: 'acme', repo: 'web' },
+      createSonarCloudClient: () => {
+        if (options.discoveryFailureMessage) {
+          throw new Error(options.discoveryFailureMessage);
+        }
+        return new StaticSonarCloudProjectClient(options.projects ?? []);
+      },
+      createAdapter: async (source) => {
+        observedSources.push(source);
+        return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
+      },
+    }),
+  };
 }
 
 class StaticAdapter implements BaseAdapter {
