@@ -97,7 +97,7 @@ async function promptForSource(tokenStorage: TokenStorage, existingSources: Sour
     type,
     name,
     enabled: true,
-    path: normalizedPath !== '' ? normalizedPath : undefined,
+    path: normalizedPath === '' ? undefined : normalizedPath,
     token_ref: tokenRef,
     options,
   }];
