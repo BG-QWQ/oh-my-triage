@@ -4,10 +4,9 @@
   "description": "Open-source, self-hosted, privacy-first MCP-based triage layer for code/security scanner findings",
   "type": "module",
   "license": "Apache-2.0",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cli/index.js",
   "bin": {
-    "findingbridge": "dist/index.js"
+    "findingbridge": "dist/cli/index.js"
   },
   "files": [
     "dist",
@@ -68,10 +67,10 @@
   "author": "FindingBridge Contributors",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourname/findingbridge.git"
+    "url": "git+https://github.com/BG-QWQ/FindingBridge.git"
   },
   "bugs": {
-    "url": "https://github.com/yourname/findingbridge/issues"
+    "url": "https://github.com/BG-QWQ/FindingBridge/issues"
   },
-  "homepage": "https://github.com/yourname/findingbridge#readme"
+  "homepage": "https://github.com/BG-QWQ/FindingBridge#readme"
 }
