@@ -5,12 +5,14 @@ on:
     types: [created]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-artifacts:
     name: Build ${{ matrix.label }} artifact
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
