@@ -20,20 +20,12 @@ describe('SourceSyncService', () => {
   });
 
   it('syncs configured sources through an adapter and upserts findings', async () => {
-    const config = createConfig([
-      {
-        id: 'local-sarif',
-        type: 'sarif',
-        enabled: true,
-        options: {},
-      },
-    ]);
+    const config = createConfig([localSarifSource({ path: undefined })]);
     const adapter = new StaticAdapter([createFinding()]);
-    const service = new SourceSyncService({
+    const service = createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => adapter,
+      adapter,
     });
 
     const result = await service.syncSources({ allSources: true });
@@ -57,30 +49,20 @@ describe('SourceSyncService', () => {
   });
 
   it('marks missing same-scope findings stale after a complete successful sync', async () => {
-    const config = createConfig([
-      {
-        id: 'local-sarif',
-        type: 'sarif',
-        enabled: true,
-        path: 'scanner.sarif',
-        options: {},
-      },
-    ]);
+    const config = createConfig([localSarifSource()]);
     const firstFinding = createFinding({ id: 'fb-sync-test-001', fingerprint: 'sync-test-fingerprint-1' });
     const secondFinding = createFinding({ id: 'fb-sync-test-002', fingerprint: 'sync-test-fingerprint-2' });
-    const service = new SourceSyncService({
+    const service = createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new StaticAdapter([firstFinding, secondFinding]),
+      adapter: new StaticAdapter([firstFinding, secondFinding]),
     });
 
     await service.syncSources({ allSources: true });
-    const secondService = new SourceSyncService({
+    const secondService = createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new StaticAdapter([firstFinding]),
+      adapter: new StaticAdapter([firstFinding]),
     });
     const result = await secondService.syncSources();
 
@@ -96,23 +78,14 @@ describe('SourceSyncService', () => {
   });
 
   it('moves legacy unscoped findings out of the default context after successful sync', async () => {
-    const config = createConfig([
-      {
-        id: 'local-sarif',
-        type: 'sarif',
-        enabled: true,
-        path: 'scanner.sarif',
-        options: {},
-      },
-    ]);
+    const config = createConfig([localSarifSource()]);
     const repo = new FindingRepository(db);
     repo.upsert(createFinding({ id: 'fb-legacy-001', fingerprint: 'legacy-fingerprint' }));
     const syncedFinding = createFinding({ id: 'fb-sync-test-001', fingerprint: 'sync-test-fingerprint-1' });
-    const service = new SourceSyncService({
+    const service = createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new StaticAdapter([syncedFinding]),
+      adapter: new StaticAdapter([syncedFinding]),
     });
 
     const result = await service.syncSources({ allSources: true });
@@ -157,28 +130,18 @@ describe('SourceSyncService', () => {
   });
 
   it('does not mark existing findings stale when sync fails', async () => {
-    const config = createConfig([
-      {
-        id: 'local-sarif',
-        type: 'sarif',
-        enabled: true,
-        path: 'scanner.sarif',
-        options: {},
-      },
-    ]);
-    const service = new SourceSyncService({
+    const config = createConfig([localSarifSource()]);
+    const service = createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new StaticAdapter([createFinding()]),
+      adapter: new StaticAdapter([createFinding()]),
     });
     await service.syncSources();
 
-    const failingService = new SourceSyncService({
+    const failingService = createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new FailingAdapter(),
+      adapter: new FailingAdapter(),
     });
 
     const result = await failingService.syncSources();
@@ -192,87 +155,58 @@ describe('SourceSyncService', () => {
   });
 
   it('skips stale marking when pagination is truncated by max_pages', async () => {
-    const config = createConfig([
-      {
-        id: 'local-sarif',
-        type: 'sarif',
-        enabled: true,
-        path: 'scanner.sarif',
-        options: {},
-      },
-    ]);
+    const config = createConfig([localSarifSource()]);
     const firstFinding = createFinding({ id: 'fb-sync-test-001', fingerprint: 'sync-test-fingerprint-1' });
     const secondFinding = createFinding({ id: 'fb-sync-test-002', fingerprint: 'sync-test-fingerprint-2' });
-    const firstService = new SourceSyncService({
+    const firstService = createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new StaticAdapter([firstFinding, secondFinding]),
+      adapter: new StaticAdapter([firstFinding, secondFinding]),
     });
     await firstService.syncSources();
 
-    const truncatedService = new SourceSyncService({
+    const truncatedService = createPaginatedService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new PaginatedAdapter([
-        {
-          findings: [firstFinding],
-          total: 2,
-          has_more: true,
-          next_cursor: 'page-2',
-        },
-      ]),
+      pages: [{
+        findings: [firstFinding],
+        total: 2,
+        has_more: true,
+        next_cursor: 'page-2',
+      }],
     });
 
     const result = await truncatedService.syncSources({ maxPages: 1 });
 
-    expect(result.results[0]).toMatchObject({
-      status: 'success',
-      stale_isolation_applied: false,
-      findings_stale_marked: 0,
-    });
+    expectNoStaleMarking(result);
     expect(new FindingRepository(db).list({}).total).toBe(2);
   });
 
   it('does not reactivate a stale finding during truncated sync', async () => {
-    const config = createConfig([
-      {
-        id: 'local-sarif',
-        type: 'sarif',
-        enabled: true,
-        path: 'scanner.sarif',
-        options: {},
-      },
-    ]);
+    const config = createConfig([localSarifSource()]);
     const staleFinding = createFinding({ id: 'fb-sync-test-001', fingerprint: 'sync-test-fingerprint-1' });
     const secondFinding = createFinding({ id: 'fb-sync-test-002', fingerprint: 'sync-test-fingerprint-2' });
-    await new SourceSyncService({
+    await createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new StaticAdapter([staleFinding, secondFinding]),
+      adapter: new StaticAdapter([staleFinding, secondFinding]),
     }).syncSources();
-    await new SourceSyncService({
+    await createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new StaticAdapter([secondFinding]),
+      adapter: new StaticAdapter([secondFinding]),
     }).syncSources();
     expect(new FindingRepository(db).getById('fb-sync-test-001')?.is_stale).toBe(true);
 
-    const truncatedService = new SourceSyncService({
+    const truncatedService = createPaginatedService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new PaginatedAdapter([
-        {
-          findings: [staleFinding],
-          total: 2,
-          has_more: true,
-          next_cursor: 'page-2',
-        },
-      ]),
+      pages: [{
+        findings: [staleFinding],
+        total: 2,
+        has_more: true,
+        next_cursor: 'page-2',
+      }],
     });
 
     const result = await truncatedService.syncSources({ maxPages: 1 });
@@ -302,19 +236,15 @@ describe('SourceSyncService', () => {
       createAdapter: async () => new StaticAdapter([firstProjectFinding]),
     }).syncSources({ projectKeys: { sonarcloud: 'project-a' } });
 
-    const truncatedService = new SourceSyncService({
+    const truncatedService = createCredentialedPaginatedService({
       db,
       config,
-      databasePath: ':memory:',
-      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      createAdapter: async () => new PaginatedAdapter([
-        {
-          findings: [secondProjectFinding],
-          total: 2,
-          has_more: true,
-          next_cursor: 'page-2',
-        },
-      ]),
+      pages: [{
+        findings: [secondProjectFinding],
+        total: 2,
+        has_more: true,
+        next_cursor: 'page-2',
+      }],
     });
 
     const result = await truncatedService.syncSources({ projectKeys: { sonarcloud: 'project-b' }, maxPages: 1 });
@@ -341,33 +271,25 @@ describe('SourceSyncService', () => {
     ]);
     const firstFinding = createFinding({ id: 'fb-sync-test-001', fingerprint: 'sync-test-fingerprint-1' });
     const secondFinding = createFinding({ id: 'fb-sync-test-002', fingerprint: 'sync-test-fingerprint-2' });
-    await new SourceSyncService({
+    await createSourceSyncService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new StaticAdapter([firstFinding, secondFinding]),
+      adapter: new StaticAdapter([firstFinding, secondFinding]),
     }).syncSources();
 
-    const malformedService = new SourceSyncService({
+    const malformedService = createPaginatedService({
       db,
       config,
-      databasePath: ':memory:',
-      createAdapter: async () => new PaginatedAdapter([
-        {
-          findings: [firstFinding],
-          total: 2,
-          has_more: true,
-        },
-      ]),
+      pages: [{
+        findings: [firstFinding],
+        total: 2,
+        has_more: true,
+      }],
     });
 
     const result = await malformedService.syncSources();
 
-    expect(result.results[0]).toMatchObject({
-      status: 'success',
-      stale_isolation_applied: false,
-      findings_stale_marked: 0,
-    });
+    expectNoStaleMarking(result);
     expect(new FindingRepository(db).list({}).total).toBe(2);
   });
 
@@ -425,22 +347,7 @@ describe('SourceSyncService', () => {
   });
 
   it('syncs multiple GitHub repository sources independently with a shared token ref', async () => {
-    const config = createConfig([
-      {
-        id: 'github-code-scanning',
-        type: 'github',
-        enabled: true,
-        token_ref: 'github-code-scanning',
-        options: { owner: 'acme', repo: 'api' },
-      },
-      {
-        id: 'github-code-scanning-acme-web',
-        type: 'github',
-        enabled: true,
-        token_ref: 'github-code-scanning',
-        options: { owner: 'acme', repo: 'web' },
-      },
-    ]);
+    const config = createConfig(gitHubSources());
     const observedSources: SourceConfig[] = [];
     const service = new SourceSyncService({
       db,
@@ -473,18 +380,12 @@ describe('SourceSyncService', () => {
     const result = await service.syncSources();
 
     expect(result).toMatchObject({ sources_total: 3, sources_synced: 2, sources_skipped: 1 });
-    expect(observedSources.map((source) => source.id)).toEqual(['github-code-scanning-acme-web', 'sonarcloud-web']);
-    expect(result.results.find((entry) => entry.source_id === 'sonarcloud-unconfigured')).toMatchObject({
-      status: 'skipped',
-      error_message: 'SonarCloud source sonarcloud-unconfigured had no exact project match for acme/web.',
-    });
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web', 'sonarcloud-web']);
+    expectSkippedSource(result, 'sonarcloud-unconfigured', 'SonarCloud source sonarcloud-unconfigured had no exact project match for acme/web.');
   });
 
   it('infers a SonarCloud project key from a unique exact current repository match', async () => {
-    const config = createConfig([
-      ...gitHubSources(),
-      sonarCloudSource(),
-    ]);
+    const config = createConfig(inferableSonarCloudSources());
     const { observedSources, service } = createObservedSyncService({
       db,
       config,
@@ -497,16 +398,13 @@ describe('SourceSyncService', () => {
     const result = await service.syncSources();
 
     expect(result).toMatchObject({ sources_total: 2, sources_synced: 2, sources_skipped: 0 });
-    expect(observedSources.map((source) => source.id)).toEqual(['github-code-scanning-acme-web', 'sonarcloud-web']);
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web', 'sonarcloud-web']);
     expect(observedSources.find((source) => source.id === 'sonarcloud-web')?.project_key).toBe('acme_web');
     expect(config.sources.find((source) => source.id === 'sonarcloud-web')?.project_key).toBeUndefined();
   });
 
   it('infers a SonarCloud project key from a unique normalized owner and repository match', async () => {
-    const config = createConfig([
-      ...gitHubSources(),
-      sonarCloudSource(),
-    ]);
+    const config = createConfig(inferableSonarCloudSources());
     const { observedSources, service } = createObservedSyncService({
       db,
       config,
@@ -554,10 +452,7 @@ describe('SourceSyncService', () => {
   });
 
   it('skips ambiguous SonarCloud current repository matches instead of fuzzy auto-syncing', async () => {
-    const config = createConfig([
-      ...gitHubSources(),
-      sonarCloudSource(),
-    ]);
+    const config = createConfig(inferableSonarCloudSources());
     const { observedSources, service } = createObservedSyncService({
       db,
       config,
@@ -570,18 +465,12 @@ describe('SourceSyncService', () => {
     const result = await service.syncSources();
 
     expect(result).toMatchObject({ sources_total: 2, sources_synced: 1, sources_skipped: 1 });
-    expect(observedSources.map((source) => source.id)).toEqual(['github-code-scanning-acme-web']);
-    expect(result.results.find((entry) => entry.source_id === 'sonarcloud-web')).toMatchObject({
-      status: 'skipped',
-      error_message: 'SonarCloud source sonarcloud-web matched multiple projects for acme/web.',
-    });
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web']);
+    expectSkippedSource(result, 'sonarcloud-web', 'SonarCloud source sonarcloud-web matched multiple projects for acme/web.');
   });
 
   it('skips SonarCloud inference when project discovery is truncated', async () => {
-    const config = createConfig([
-      ...gitHubSources(),
-      sonarCloudSource(),
-    ]);
+    const config = createConfig(inferableSonarCloudSources());
     const { observedSources, service } = createObservedSyncService({
       db,
       config,
@@ -591,19 +480,12 @@ describe('SourceSyncService', () => {
     const result = await service.syncSources({ maxPages: 1 });
 
     expect(result).toMatchObject({ sources_total: 2, sources_synced: 1, sources_skipped: 1 });
-    expect(observedSources.map((source) => source.id)).toEqual(['github-code-scanning-acme-web']);
-    expect(result.results.find((entry) => entry.source_id === 'sonarcloud-web')).toMatchObject({
-      status: 'skipped',
-      error_message:
-        'SonarCloud source sonarcloud-web project discovery reached max_pages before FindingBridge could prove a unique project match.',
-    });
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web']);
+    expectSkippedSource(result, 'sonarcloud-web', 'SonarCloud source sonarcloud-web project discovery reached max_pages before FindingBridge could prove a unique project match.');
   });
 
   it('skips SonarCloud inference when matching projects appear across multiple pages', async () => {
-    const config = createConfig([
-      ...gitHubSources(),
-      sonarCloudSource(),
-    ]);
+    const config = createConfig(inferableSonarCloudSources());
     const { observedSources, service } = createObservedSyncService({
       db,
       config,
@@ -616,11 +498,8 @@ describe('SourceSyncService', () => {
     const result = await service.syncSources({ maxPages: 2 });
 
     expect(result).toMatchObject({ sources_total: 2, sources_synced: 1, sources_skipped: 1 });
-    expect(observedSources.map((source) => source.id)).toEqual(['github-code-scanning-acme-web']);
-    expect(result.results.find((entry) => entry.source_id === 'sonarcloud-web')).toMatchObject({
-      status: 'skipped',
-      error_message: 'SonarCloud source sonarcloud-web matched multiple projects for acme/web.',
-    });
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web']);
+    expectSkippedSource(result, 'sonarcloud-web', 'SonarCloud source sonarcloud-web matched multiple projects for acme/web.');
   });
 
   it('uses per-call SonarCloud project keys as inferable current-project sources', async () => {
@@ -639,7 +518,7 @@ describe('SourceSyncService', () => {
     const result = await service.syncSources({ projectKeys: { 'sonarcloud-web': 'acme_web' } });
 
     expect(result).toMatchObject({ sources_total: 2, sources_synced: 2 });
-    expect(observedSources.map((source) => source.id)).toEqual(['github-code-scanning-acme-web', 'sonarcloud-web']);
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web', 'sonarcloud-web']);
     expect(observedSources.find((source) => source.id === 'sonarcloud-web')?.project_key).toBe('acme_web');
     expect(config.sources.find((source) => source.id === 'sonarcloud-web')?.project_key).toBe(' ');
   });
@@ -655,7 +534,7 @@ describe('SourceSyncService', () => {
     const result = await service.syncSources({ sourceIds: ['sonarcloud-web'] });
 
     expect(result).toMatchObject({ sources_total: 1, sources_synced: 1 });
-    expect(observedSources.map((source) => source.id)).toEqual(['sonarcloud-web']);
+    expectObservedSourceIds(observedSources, ['sonarcloud-web']);
   });
 
   it('syncs all configured sources only when allSources is explicit', async () => {
@@ -669,7 +548,7 @@ describe('SourceSyncService', () => {
     const result = await service.syncSources({ allSources: true });
 
     expect(result).toMatchObject({ sources_total: 5, sources_synced: 5, sources_failed: 0 });
-    expect(observedSources.map((source) => source.id)).toEqual([
+    expectObservedSourceIds(observedSources, [
       'github-code-scanning',
       'github-code-scanning-acme-web',
       'sonarcloud-web',
@@ -721,6 +600,79 @@ function createConfig(sources: SourceConfig[]): Config {
   };
 }
 
+function localSarifSource(overrides: Partial<SourceConfig> = {}): SourceConfig {
+  return {
+    id: 'local-sarif',
+    type: 'sarif',
+    enabled: true,
+    path: 'scanner.sarif',
+    options: {},
+    ...overrides,
+  };
+}
+
+function createSourceSyncService(options: {
+  db: Database.Database;
+  config: Config;
+  adapter: BaseAdapter;
+}): SourceSyncService {
+  return new SourceSyncService({
+    db: options.db,
+    config: options.config,
+    databasePath: ':memory:',
+    createAdapter: async () => options.adapter,
+  });
+}
+
+function createPaginatedService(options: {
+  db: Database.Database;
+  config: Config;
+  pages: AdapterFetchResult[];
+}): SourceSyncService {
+  return createSourceSyncService({
+    db: options.db,
+    config: options.config,
+    adapter: new PaginatedAdapter(options.pages),
+  });
+}
+
+function createCredentialedPaginatedService(options: {
+  db: Database.Database;
+  config: Config;
+  pages: AdapterFetchResult[];
+}): SourceSyncService {
+  return new SourceSyncService({
+    db: options.db,
+    config: options.config,
+    databasePath: ':memory:',
+    credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+    createAdapter: async () => new PaginatedAdapter(options.pages),
+  });
+}
+
+function expectObservedSourceIds(observedSources: SourceConfig[], sourceIds: string[]): void {
+  expect(observedSources.map((source) => source.id)).toEqual(sourceIds);
+}
+
+function expectNoStaleMarking(result: Awaited<ReturnType<SourceSyncService['syncSources']>>): void {
+  expect(result.results[0]).toMatchObject({
+    status: 'success',
+    stale_isolation_applied: false,
+    findings_stale_marked: 0,
+  });
+}
+
+function expectSkippedSource(
+  result: Awaited<ReturnType<SourceSyncService['syncSources']>>,
+  sourceId: string,
+  errorMessage: string
+): void {
+  expect(result.results.find((entry) => entry.source_id === sourceId)).toMatchObject({
+    status: 'skipped',
+    error_message: errorMessage,
+  });
+}
+
 function gitHubSources(): SourceConfig[] {
   return [
     {
@@ -737,6 +689,13 @@ function gitHubSources(): SourceConfig[] {
       token_ref: 'github-code-scanning',
       options: { owner: 'acme', repo: 'web' },
     },
+  ];
+}
+
+function inferableSonarCloudSources(): SourceConfig[] {
+  return [
+    ...gitHubSources(),
+    sonarCloudSource(),
   ];
 }
 
