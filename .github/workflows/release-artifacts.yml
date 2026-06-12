@@ -57,7 +57,8 @@ jobs:
           cache: npm
 
       - name: Verify runner architecture
-        run: node -e "if (process.platform !== '${{ matrix.expected_platform }}' || process.arch !== '${{ matrix.expected_arch }}') { throw new Error(`runner mismatch: ${process.platform}-${process.arch}`); }"
+        run: |
+          node -e "const expectedPlatform = '${{ matrix.expected_platform }}'; const expectedArch = '${{ matrix.expected_arch }}'; if (process.platform !== expectedPlatform || process.arch !== expectedArch) { throw new Error('runner mismatch: ' + process.platform + '-' + process.arch); }"
 
       - name: Install dependencies
         run: npm ci
