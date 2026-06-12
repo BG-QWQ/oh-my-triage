@@ -9,6 +9,7 @@ type SyncOptions = {
   db?: string;
   config?: string;
   maxPages?: string;
+  all?: boolean;
 };
 
 /** Create the `sync` command for pulling configured scanner findings into SQLite. */
@@ -16,6 +17,7 @@ export function createSyncCommand(): Command {
   return new Command('sync')
     .description('Synchronize findings from configured scanner sources into the local database')
     .option('--source <id>', 'Source identifier to sync; repeat for multiple sources', collectSource, [])
+    .option('--all', 'Synchronize every enabled source instead of inferred current-project sources')
     .option('--db <path>', 'Path to SQLite database')
     .option('-c, --config <path>', 'Configuration file path')
     .option('--max-pages <number>', 'Maximum pages to fetch per source', String(20))
@@ -36,6 +38,7 @@ export function createSyncCommand(): Command {
         const result = await service.syncSources({
           sourceIds: options.source,
           maxPages: parsePositiveInt(options.maxPages, 'max-pages'),
+          allSources: options.all,
         });
         console.log(JSON.stringify(result, null, 2));
       } finally {

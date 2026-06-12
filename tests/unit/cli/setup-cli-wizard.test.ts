@@ -10,6 +10,7 @@ const promptState = vi.hoisted(() => ({
 
 const configState = vi.hoisted(() => ({
   savedConfig: undefined as Config | undefined,
+  loadedConfig: undefined as Config | undefined,
 }));
 
 vi.mock('@inquirer/prompts', () => ({
@@ -21,7 +22,7 @@ vi.mock('@inquirer/prompts', () => ({
 
 vi.mock('@/config/config.js', () => ({
   loadOrCreateConfig: vi.fn(async () => ({
-    config: baseConfig(),
+    config: configState.loadedConfig ?? baseConfig(),
     filepath: 'findingbridge.config.json',
   })),
   saveConfig: vi.fn(async (config: Config) => {
@@ -55,6 +56,7 @@ describe('runCliSetupWizard', () => {
     promptState.selects = ['env', 'github'];
     promptState.confirms = [true, false];
     configState.savedConfig = undefined;
+    configState.loadedConfig = undefined;
   });
 
   it('persists GitHub owner and repository options from CLI prompts', async () => {
@@ -74,14 +76,64 @@ describe('runCliSetupWizard', () => {
       }),
     ]);
   });
+
+  it('persists multiple GitHub repository sources from comma-separated CLI input', async () => {
+    promptState.inputs = ['github-code-scanning', 'GitHub Code Scanning', 'acme', 'api, other/web'];
+    const { runCliSetupWizard } = await import('@/cli/setup-cli-wizard.js');
+
+    await runCliSetupWizard({ add: true });
+
+    expect(configState.savedConfig?.sources).toEqual([
+      expect.objectContaining({
+        id: 'github-code-scanning',
+        token_ref: 'env:GITHUB_CODE_SCANNING_TOKEN',
+        options: { owner: 'acme', repo: 'api' },
+      }),
+      expect.objectContaining({
+        id: 'github-code-scanning-other-web',
+        token_ref: 'env:GITHUB_CODE_SCANNING_TOKEN',
+        options: { owner: 'other', repo: 'web' },
+      }),
+    ]);
+  });
+
+  it('updates an existing GitHub repository source instead of duplicating its id', async () => {
+    configState.loadedConfig = baseConfig([
+      {
+        id: 'github-code-scanning',
+        type: 'github',
+        enabled: true,
+        token_ref: 'existing-token-ref',
+        options: { owner: 'acme', repo: 'api' },
+      },
+    ]);
+    promptState.inputs = ['github-code-scanning', 'GitHub Code Scanning', 'acme', 'api, web'];
+    const { runCliSetupWizard } = await import('@/cli/setup-cli-wizard.js');
+
+    await runCliSetupWizard({ add: true });
+
+    expect(configState.savedConfig?.sources.map((source) => source.id)).toEqual(['github-code-scanning', 'github-code-scanning-acme-web']);
+    expect(configState.savedConfig?.sources).toEqual([
+      expect.objectContaining({
+        id: 'github-code-scanning',
+        token_ref: 'env:GITHUB_CODE_SCANNING_TOKEN',
+        options: { owner: 'acme', repo: 'api' },
+      }),
+      expect.objectContaining({
+        id: 'github-code-scanning-acme-web',
+        token_ref: 'env:GITHUB_CODE_SCANNING_TOKEN',
+        options: { owner: 'acme', repo: 'web' },
+      }),
+    ]);
+  });
 });
 
-function baseConfig(): Config {
+function baseConfig(sources: Config['sources'] = []): Config {
   return {
     version: '1',
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     token_storage: 'keychain',
-    sources: [],
+    sources,
   };
 }

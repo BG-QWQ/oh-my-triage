@@ -1,8 +1,24 @@
 # MCP Tools Reference
 
-All tools use the `findingbridge_` prefix and are read-only (`readOnlyHint: true`).
+All tools use the `findingbridge_` prefix. Read-only tools declare
+`readOnlyHint: true`.
 
-`findingbridge_sync_sources` writes scanner findings to FindingBridge's local database only; it never modifies user repositories.
+`findingbridge_sync_sources` may call scanner APIs and writes scanner findings
+to FindingBridge's local database only; it never modifies user repositories.
+
+## Workspace Confirmation Guardrail
+
+FindingBridge MCP tools return findings from the configured local database or
+from scanner sources synchronized into that database. The MCP server cannot
+reliably know the calling agent's current IDE/workspace repository, so agents
+must ask the user to confirm the repository or scanner project under review
+before relying on findings as applicable to that workspace.
+
+Do not use `file_path`, `rule_id`, or stored scanner project keys as implicit
+current-project selectors. When current/latest platform data is requested,
+confirm the current repository/project with the user, synchronize the matching
+source or sources with `findingbridge_sync_sources`, then read
+`findingbridge_summary` or `findingbridge_list_findings`.
 
 ## findingbridge_list_findings
 
@@ -34,7 +50,8 @@ By default, stale or out-of-current-scope findings are excluded. Set
 - `file_path` matches normalized stored finding locations, such as `src/db.ts`
   or `ensemble.py`; it is not a repository name, scanner project key, or
   current-project selector.
-- SonarCloud project keys belong in the discovery and synchronization flow:
+- SonarCloud project keys belong in the discovery and synchronization flow. If
+  default sync cannot infer a unique exact/normalized current-repository match,
   call `findingbridge_list_source_projects`, choose the matching project key,
   then pass it to `findingbridge_sync_sources.project_keys[source_id]`.
 - Empty results with filters mean no stored findings matched those filters. For
@@ -326,7 +343,7 @@ an organization.
         }
       ],
       "next_steps": [
-        "Choose the project key that matches the current repository before running findingbridge_sync_sources."
+        "Choose every project key that matches the current repository, then call findingbridge_sync_sources without source_ids and pass project_keys for every matching source that needs a key."
       ]
     }
   ],
@@ -349,13 +366,36 @@ Call this before reading current scanner platform results with
   "project_keys": {
     "sonarcloud": "org_project"
   },
+  "all_sources": false,
   "max_pages": 20
 }
 ```
 
-For SonarCloud sources without a saved `project_key`, first call
-`findingbridge_list_source_projects`, then pass the selected project key as
-`project_keys[source_id]`. Per-call overrides are not persisted.
+When synchronizing all scanner data for the confirmed current workspace
+repository, omit `source_ids`. Omitted `source_ids` tells FindingBridge to sync
+all inferred current-project sources: GitHub sources whose configured
+owner/repository matches the local `origin` remote, plus SonarCloud sources with
+a saved `project_key`, a per-call `project_keys[source_id]` override, or a
+single exact/normalized SonarCloud project match for the current GitHub
+owner/repository. SARIF path sources are not inferred from the current
+repository; select them explicitly with `source_ids`, make them the only enabled
+source, or pass `all_sources: true`.
+
+Pass `all_sources: true` only when you intentionally want to synchronize every
+enabled configured source, including sources that are not inferable as the
+current project.
+
+For SonarCloud sources without a saved `project_key`, default sync discovers
+projects in the configured organization and auto-selects only one unique
+exact/normalized match, such as `owner_repo`, `owner-repo`, or a project name
+equal to the repository name. Ambiguous matches, missing matches, missing
+organization/token, truncated project discovery, or discovery failures are
+returned as skipped source results with next steps; FindingBridge does not fuzzy
+auto-sync those projects. In those cases, rerun with a higher `max_pages` value
+or call `findingbridge_list_source_projects`, have the user confirm every
+matching key, then rerun `findingbridge_sync_sources` without `source_ids` and
+pass a complete `project_keys` map for each source that needs a key. Inferred and
+per-call project keys are not persisted.
 
 ### Output Fields
 
@@ -398,9 +438,14 @@ All tools return structured errors:
 
 ## Annotations
 
-All tools declare:
-- `readOnlyHint: true` — Tools do not modify data
-- `destructiveHint: false` — No destructive operations
+Read-only tools declare:
+- `readOnlyHint: true` — The tool does not modify data
+- `destructiveHint: false` — The tool performs no destructive operations
+
+`findingbridge_sync_sources` declares `readOnlyHint: false` because it writes
+scanner findings to FindingBridge's local database, while still declaring
+`destructiveHint: false` because it does not modify user repositories or delete
+scanner data.
 
 ## Pagination
 

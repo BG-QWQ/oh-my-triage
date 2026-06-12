@@ -8,8 +8,15 @@ import { detectMcpClients } from '../config/mcp-client-detector.js';
 import { writeMcpClientConfig } from '../config/mcp-config-writer.js';
 import { loadOrCreateConfig, saveConfig } from '../config/config.js';
 import { CredentialStore } from '../config/credential-store.js';
+import { expandGitHubSetupSources, type GitHubRepositorySelection } from '../config/github-source-expansion.js';
 import { TokenStorageSchema, type SourceConfig, type TokenStorage } from '../config/validation.js';
 import type { ScannerType } from './setup-api.js';
+
+const GitHubRepositorySelectionSchema = z.object({
+  owner: z.string().min(1),
+  repo: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+});
 
 const SetupSourceSchema = z.object({
   id: z.string().min(1),
@@ -28,6 +35,7 @@ const SaveSetupRequestSchema = z.object({
 });
 
 type SetupSourceInput = z.infer<typeof SetupSourceSchema>;
+type GitHubRepositorySelectionInput = z.infer<typeof GitHubRepositorySelectionSchema>;
 
 type ApiRoute = {
   path: string;
@@ -336,6 +344,34 @@ async function handleSaveSetup(req: IncomingMessage, res: ServerResponse): Promi
 
     for (const source of parsed.data.sources) {
       const existingSource = sourceMap.get(source.id);
+      if (source.type === 'github') {
+        if (hasSensitiveOptionKey(source.options)) {
+          throw new SetupValidationError(`Options for ${source.name ?? source.id} include secret-shaped keys. Put scanner tokens in the token field instead.`);
+        }
+
+        const repositories = readGitHubRepositorySelections(source);
+        const reusableExistingSource = existingSource ?? findExistingGitHubTokenSource(loadedConfig.config.sources, repositories);
+        const resolvedToken = await resolveTokenRef({
+          source,
+          existingSource: reusableExistingSource,
+          tokenStorage: parsed.data.token_storage,
+          credentialStore,
+          warnings,
+        });
+        if (resolvedToken.storage) {
+          actualTokenStorage = resolvedToken.storage;
+        }
+
+        sources.push(...expandGitHubSetupSources({
+          baseId: source.id,
+          displayName: source.name ?? source.id,
+          repositories,
+          existingSources: loadedConfig.config.sources,
+          tokenRef: resolvedToken.tokenRef,
+        }));
+        continue;
+      }
+
       const resolvedToken = await resolveTokenRef({
         source,
         existingSource,
@@ -364,14 +400,15 @@ async function handleSaveSetup(req: IncomingMessage, res: ServerResponse): Promi
     const nextConfig = {
       ...loadedConfig.config,
       token_storage: actualTokenStorage,
-      sources: [...unmanagedSources, ...sources],
+      sources: upsertSources([...unmanagedSources, ...loadedConfig.config.sources.filter((source) => managedTypes.has(source.type as ScannerType))], sources),
     };
 
     const configPath = await saveConfig(nextConfig, loadedConfig.filepath);
+    const configuredScanners = [...new Set(sources.map((source) => source.type as ScannerType))];
     sendJson(res, 200, {
       success: true,
       config_path: configPath,
-      configured_scanners: sources.map((source) => source.type),
+      configured_scanners: configuredScanners,
       warnings,
     });
   } catch (err) {
@@ -379,6 +416,70 @@ async function handleSaveSetup(req: IncomingMessage, res: ServerResponse): Promi
     const message = err instanceof Error ? err.message : 'Failed to save setup';
     sendError(res, err instanceof SetupValidationError ? 400 : 500, message);
   }
+}
+
+function upsertSources(existingSources: SourceConfig[], nextSources: SourceConfig[]): SourceConfig[] {
+  const sourcesById = new Map(existingSources.map((source) => [source.id, source]));
+  for (const source of nextSources) {
+    sourcesById.set(source.id, source);
+  }
+  return [...sourcesById.values()];
+}
+
+function readGitHubRepositorySelections(source: SetupSourceInput): GitHubRepositorySelection[] {
+  const repositoriesValue = source.options.repositories;
+  if (repositoriesValue !== undefined) {
+    const parsed = z.array(GitHubRepositorySelectionSchema).safeParse(repositoriesValue);
+    if (!parsed.success) {
+      throw new SetupValidationError(`GitHub source ${source.name ?? source.id} has invalid repository selections.`);
+    }
+
+    const repositories = parsed.data.map(normalizeRepositorySelection).filter((repository): repository is GitHubRepositorySelection => Boolean(repository));
+    if (repositories.length === 0) {
+      throw new SetupValidationError(`GitHub source ${source.name ?? source.id} requires at least one selected repository.`);
+    }
+    return repositories;
+  }
+
+  const owner = readStringOption(source.options, 'owner');
+  const repo = readStringOption(source.options, 'repo');
+  if (!owner || !repo) {
+    throw new SetupValidationError(`GitHub source ${source.name ?? source.id} requires a selected repository owner and name.`);
+  }
+  return [{ owner, repo }];
+}
+
+function normalizeRepositorySelection(selection: GitHubRepositorySelectionInput): GitHubRepositorySelection | undefined {
+  const repo = selection.repo ?? selection.name;
+  if (!selection.owner.trim() || !repo?.trim()) {
+    return undefined;
+  }
+  return { owner: selection.owner.trim(), repo: repo.trim() };
+}
+
+function findExistingGitHubTokenSource(sources: SourceConfig[], repositories: GitHubRepositorySelection[]): SourceConfig | undefined {
+  for (const repository of repositories) {
+    const match = sources.find((source) => {
+      if (source.type !== 'github' || !source.token_ref) {
+        return false;
+      }
+      return repositoryMatches(source, repository);
+    });
+    if (match) {
+      return match;
+    }
+  }
+  return sources.find((source) => source.type === 'github' && Boolean(source.token_ref));
+}
+
+function repositoryMatches(source: SourceConfig, repository: GitHubRepositorySelection): boolean {
+  return readSourceOption(source, 'owner')?.toLowerCase() === repository.owner.toLowerCase()
+    && readSourceOption(source, 'repo')?.toLowerCase() === repository.repo.toLowerCase();
+}
+
+function readSourceOption(source: SourceConfig, key: string): string | undefined {
+  const value = source.options[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
 /** Resolve a config-safe token reference for one setup source. */

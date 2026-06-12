@@ -40,6 +40,25 @@ include `organization`, MCP agents can pass it per call:
 }
 ```
 
+## Sync Behavior
+
+Default synchronization can include a SonarCloud source as an inferred
+current-project source when the source has a saved `project_key`, the sync call
+passes a matching `project_keys[source_id]` override, or project discovery finds
+exactly one safe match for the current GitHub owner/repository. Safe automatic
+matches are exact or normalized forms such as `owner_repo`, `owner-repo`, or a
+SonarCloud project name equal to the repository name.
+
+FindingBridge does not fuzzy auto-sync ambiguous SonarCloud projects. If a source
+has no saved `project_key` and discovery finds no match, multiple matches, no
+organization/token, truncated project discovery, or a permissions error, default
+sync returns a skipped result with next steps and still synchronizes other
+inferable sources. Rerun with a higher `max_pages` value or use
+`findingbridge_list_source_projects` to inspect candidates, have the user confirm
+the matching key, then rerun `findingbridge_sync_sources` without `source_ids`
+and pass `project_keys[source_id]`. Inferred and per-call project keys are not
+persisted.
+
 ## Data Retrieved
 
 - SonarCloud issues

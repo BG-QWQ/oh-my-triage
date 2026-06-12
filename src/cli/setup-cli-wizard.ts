@@ -1,6 +1,7 @@
 import { confirm, input, password, select } from '@inquirer/prompts';
 import { loadOrCreateConfig, saveConfig } from '../config/config.js';
 import { CredentialStore } from '../config/credential-store.js';
+import { expandGitHubSetupSources, type GitHubRepositorySelection } from '../config/github-source-expansion.js';
 import { runSetupService, type SetupResult } from '../config/setup-service.js';
 import type { SourceConfig, TokenStorage } from '../config/validation.js';
 
@@ -28,10 +29,10 @@ export async function runCliSetupWizard(options?: CliSetupOptions): Promise<Setu
   });
 
   const shouldAddSource = options?.add ?? (await confirm({ message: 'Add a scanner source now?', default: currentConfig.sources.length === 0 }));
-  const sources = [...currentConfig.sources];
+  let sources = [...currentConfig.sources];
   if (shouldAddSource) {
-    const source = await promptForSource(tokenStorage);
-    sources.push(source);
+    const newSources = await promptForSource(tokenStorage, currentConfig.sources);
+    sources = upsertSources(sources, newSources);
   }
 
   const nextConfig = {
@@ -45,8 +46,15 @@ export async function runCliSetupWizard(options?: CliSetupOptions): Promise<Setu
   return setupResult;
 }
 
-async function promptForSource(tokenStorage: TokenStorage): Promise<SourceConfig> {
-  const id = await input({ message: 'Source ID', default: 'local-sarif' });
+function upsertSources(existingSources: SourceConfig[], nextSources: SourceConfig[]): SourceConfig[] {
+  const sourcesById = new Map(existingSources.map((source) => [source.id, source]));
+  for (const source of nextSources) {
+    sourcesById.set(source.id, source);
+  }
+  return [...sourcesById.values()];
+}
+
+async function promptForSource(tokenStorage: TokenStorage, existingSources: SourceConfig[]): Promise<SourceConfig[]> {
   const type = await select<SourceConfig['type']>({
     message: 'Source type',
     default: 'sarif',
@@ -57,10 +65,11 @@ async function promptForSource(tokenStorage: TokenStorage): Promise<SourceConfig
       { name: 'Socket.dev', value: 'socket' },
     ],
   });
+  const id = await input({ message: 'Source ID', default: type === 'github' ? 'github-code-scanning' : 'local-sarif' });
   const name = await input({ message: 'Display name', default: id });
   const path = type === 'sarif' ? await input({ message: 'Default SARIF path (optional)', required: false }) : undefined;
   const normalizedPath = path?.trim();
-  const options = await promptForSourceOptions(type);
+  const options = type === 'sonarcloud' ? await promptForSonarCloudOptions() : {};
   let tokenRef: string | undefined;
   if (type !== 'sarif') {
     const token = await password({ message: `Token for ${id}` });
@@ -72,7 +81,18 @@ async function promptForSource(tokenStorage: TokenStorage): Promise<SourceConfig
     }
   }
 
-  return {
+  if (type === 'github') {
+    const repositories = await promptForGitHubRepositories();
+    return expandGitHubSetupSources({
+      baseId: id,
+      displayName: name,
+      repositories,
+      existingSources,
+      tokenRef,
+    });
+  }
+
+  return [{
     id,
     type,
     name,
@@ -80,21 +100,36 @@ async function promptForSource(tokenStorage: TokenStorage): Promise<SourceConfig
     path: normalizedPath !== '' ? normalizedPath : undefined,
     token_ref: tokenRef,
     options,
-  };
+  }];
 }
 
-async function promptForSourceOptions(type: SourceConfig['type']): Promise<Record<string, unknown>> {
-  if (type === 'github') {
-    const owner = await input({ message: 'GitHub repository owner or organization' });
-    const repo = await input({ message: 'GitHub repository name' });
-    return { owner: owner.trim(), repo: repo.trim() };
-  }
+async function promptForGitHubRepositories(): Promise<GitHubRepositorySelection[]> {
+  const owner = await input({ message: 'GitHub repository owner or organization' });
+  const repos = await input({ message: 'GitHub repository name(s), comma-separated. Use owner/repo to override owner.' });
+  return parseGitHubRepositoryEntries(owner, repos);
+}
 
-  if (type === 'sonarcloud') {
-    const organization = await input({ message: 'SonarCloud organization key' });
-    const projectKey = await input({ message: 'SonarCloud project key (optional)', required: false });
-    return { organization: organization.trim(), project_key: projectKey.trim() || undefined };
-  }
+async function promptForSonarCloudOptions(): Promise<Record<string, unknown>> {
+  const organization = await input({ message: 'SonarCloud organization key' });
+  const projectKey = await input({ message: 'SonarCloud project key (optional)', required: false });
+  return { organization: organization.trim(), project_key: projectKey.trim() || undefined };
+}
 
-  return {};
+function parseGitHubRepositoryEntries(defaultOwner: string, inputValue: string): GitHubRepositorySelection[] {
+  const owner = defaultOwner.trim();
+  return inputValue
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const slashIndex = entry.indexOf('/');
+      if (slashIndex === -1) {
+        return { owner, repo: entry };
+      }
+
+      return {
+        owner: entry.slice(0, slashIndex).trim(),
+        repo: entry.slice(slashIndex + 1).trim(),
+      };
+    });
 }

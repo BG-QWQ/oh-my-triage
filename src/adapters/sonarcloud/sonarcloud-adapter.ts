@@ -116,7 +116,7 @@ export function mapSonarCloudIssueToFinding(issue: SonarCloudIssue, projectRoot?
   });
   const fingerprint = generateFingerprint({
     tool: mapped.source.tool,
-    ruleId: mapped.source.rule_id,
+    ruleId: `${issue.project}:${mapped.source.rule_id}`,
     filePath: mapped.location.file_path,
     startLine: mapped.location.start_line,
     message: issue.message,

@@ -144,6 +144,7 @@ export const GenerateReportInputSchema = z.object({
 export const SyncSourcesInputSchema = z.object({
   source_ids: z.array(z.string().min(1)).max(20).optional(),
   project_keys: z.record(z.string().min(1), z.string().min(1)).optional(),
+  all_sources: z.boolean().default(false),
   max_pages: z.number().int().min(1).max(100).default(20),
 });
 
@@ -180,5 +181,7 @@ export type DeduplicateFindingsInput = Omit<z.infer<typeof DeduplicateFindingsIn
 export type GenerateReportInput = Omit<z.infer<typeof GenerateReportInputSchema>, 'scope'> & {
   scope: Omit<z.infer<typeof GenerateReportInputSchema>['scope'], 'include_stale'> & { include_stale?: boolean };
 };
-export type SyncSourcesInput = z.infer<typeof SyncSourcesInputSchema>;
+export type SyncSourcesInput = Omit<z.infer<typeof SyncSourcesInputSchema>, 'all_sources'> & {
+  all_sources?: boolean;
+};
 export type ListSourceProjectsInput = z.infer<typeof ListSourceProjectsInputSchema>;

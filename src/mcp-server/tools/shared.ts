@@ -66,16 +66,16 @@ const SOURCE_TOOL_ALIASES: Record<SourceType, string[]> = {
   sbom: ['SBOM'],
 };
 
-/** Build scope metadata that prevents clients from treating global data as current-project proof. */
+/** Build scope metadata that requires user confirmation before current-workspace claims. */
 export function globalFindingScope(): FindingBridgeDataScope {
   return {
     type: 'global_database',
     project_scope_supported: false,
     current_project_matched: false,
     message:
-      'FindingBridge is returning data from its configured local findings database. It has not verified that this data matches the current repository under review.',
+      'FindingBridge is returning data from its configured local findings database. It cannot verify that this data matches the current workspace repository/project under review.',
     agent_instruction:
-      'Do not claim these findings apply to the current project unless the user confirms this FindingBridge database was populated for that project.',
+      'Confirm the current workspace repository/project with the user before relying on these findings. Do not claim these findings apply to the current project unless the user confirms this FindingBridge database was populated or synchronized for that repository/project.',
   };
 }
 

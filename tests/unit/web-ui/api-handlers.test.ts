@@ -1,11 +1,51 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Config } from '@/config/validation.js';
 import { handleApiRequest } from '@/web-ui/api-handlers.js';
 
 type HeaderValue = string | number | string[];
 
+const configState = vi.hoisted(() => ({
+  savedConfig: undefined as Config | undefined,
+  loadedConfig: undefined as Config | undefined,
+}));
+
+const credentialState = vi.hoisted(() => ({
+  setTokenCalls: [] as Array<{ sourceId: string; token: string; storage: string }>,
+}));
+
+vi.mock('@/config/config.js', () => ({
+  loadOrCreateConfig: vi.fn(async () => ({
+    config: configState.loadedConfig ?? baseConfig(),
+    filepath: 'findingbridge.config.json',
+  })),
+  saveConfig: vi.fn(async (config: Config) => {
+    configState.savedConfig = config;
+    return 'findingbridge.config.json';
+  }),
+}));
+
+vi.mock('@/config/credential-store.js', () => ({
+  CredentialStore: class {
+    async setToken(sourceId: string, token: string, storage: string): Promise<{ tokenRef: string; storage: 'env' }> {
+      credentialState.setTokenCalls.push({ sourceId, token, storage });
+      return { tokenRef: 'FINDINGBRIDGE_TOKEN_GITHUB_CODE_SCANNING', storage: 'env' };
+    }
+
+    envName(sourceId: string): string {
+      return `FINDINGBRIDGE_TOKEN_${sourceId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+    }
+  },
+}));
+
 describe('handleApiRequest', () => {
+  beforeEach(() => {
+    configState.savedConfig = undefined;
+    configState.loadedConfig = undefined;
+    credentialState.setTokenCalls = [];
+  });
+
   it('dispatches setup health requests through the route table', async () => {
     const response = new StubResponse();
 
@@ -57,6 +97,78 @@ describe('handleApiRequest', () => {
     expect(response.statusCode).toBe(400);
     expect(response.body).toContain('requires a selected repository owner and name');
   });
+
+  it('expands GitHub setup repository selections into per-repository sources', async () => {
+    const response = new StubResponse();
+    const request = createJsonRequest('/api/setup/save', 'POST', {
+      token_storage: 'env',
+      sources: [
+        {
+          id: 'github-code-scanning',
+          type: 'github',
+          name: 'GitHub Code Scanning',
+          enabled: true,
+          token: 'token-123',
+          options: {
+            repositories: [
+              { owner: 'acme', repo: 'api' },
+              { owner: 'acme', repo: 'web' },
+            ],
+          },
+        },
+      ],
+    });
+
+    const handled = await handleApiRequest(request, response as unknown as ServerResponse);
+
+    expect(handled).toBe(true);
+    expect(response.statusCode).toBe(200);
+    expect(credentialState.setTokenCalls).toEqual([{ sourceId: 'github-code-scanning', token: 'token-123', storage: 'env' }]);
+    expect(configState.savedConfig?.sources).toEqual([
+      expect.objectContaining({
+        id: 'github-code-scanning',
+        token_ref: 'FINDINGBRIDGE_TOKEN_GITHUB_CODE_SCANNING',
+        options: { owner: 'acme', repo: 'api' },
+      }),
+      expect.objectContaining({
+        id: 'github-code-scanning-acme-web',
+        token_ref: 'FINDINGBRIDGE_TOKEN_GITHUB_CODE_SCANNING',
+        options: { owner: 'acme', repo: 'web' },
+      }),
+    ]);
+    expect(JSON.stringify(configState.savedConfig?.sources)).not.toContain('repositories');
+    expect(response.body).toContain('"configured_scanners":["github"]');
+  });
+
+  it('preserves omitted existing sources when saving a partial setup payload', async () => {
+    configState.loadedConfig = baseConfig([
+      {
+        id: 'local-sarif',
+        type: 'sarif',
+        enabled: true,
+        path: 'findings.sarif',
+        options: {},
+      },
+      {
+        id: 'custom-source',
+        type: 'semgrep',
+        enabled: true,
+        options: { mode: 'external' },
+      },
+    ]);
+    const response = new StubResponse();
+    const request = createJsonRequest('/api/setup/save', 'POST', {
+      token_storage: 'env',
+      sources: [],
+    });
+
+    const handled = await handleApiRequest(request, response as unknown as ServerResponse);
+
+    expect(handled).toBe(true);
+    expect(response.statusCode).toBe(200);
+    expect(configState.savedConfig?.sources).toHaveLength(2);
+    expect(configState.savedConfig?.sources).toEqual(expect.arrayContaining(configState.loadedConfig.sources));
+  });
 });
 
 function createRequest(url: string, method: string): IncomingMessage {
@@ -96,4 +208,14 @@ class StubResponse extends EventEmitter {
     this.body += chunk?.toString() ?? '';
     return this;
   }
+}
+
+function baseConfig(sources: Config['sources'] = []): Config {
+  return {
+    version: '1',
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
+    token_storage: 'keychain',
+    sources,
+  };
 }

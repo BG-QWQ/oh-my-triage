@@ -52,8 +52,8 @@ interface WizardState {
   sarifFilePath: string;
   githubToken: string;
   githubOrg: string;
-  githubRepo: string;
   githubRepositories: RepositoryOption[];
+  githubSelectedRepositories: Map<string, RepositoryOption>;
   sonarcloudToken: string;
   sonarcloudOrganization: string;
   sonarcloudProject: string;
@@ -71,8 +71,8 @@ const state: WizardState = {
   sarifFilePath: '',
   githubToken: '',
   githubOrg: '',
-  githubRepo: '',
   githubRepositories: [],
+  githubSelectedRepositories: new Map(),
   sonarcloudToken: '',
   sonarcloudOrganization: '',
   sonarcloudProject: '',
@@ -274,7 +274,7 @@ function initSarifConfigStep(): void {
 function initGithubConfigStep(): void {
   const tokenInput = $<HTMLInputElement>('#github-token');
   const orgSelect = $<HTMLSelectElement>('#github-org');
-  const repoSelect = $<HTMLSelectElement>('#github-repo');
+  const repoList = $<HTMLElement>('#github-repo-list');
   const statusContainer = $<HTMLElement>('#github-status');
 
   tokenInput.value = state.githubToken;
@@ -290,9 +290,9 @@ function initGithubConfigStep(): void {
   tokenInput.addEventListener('input', () => {
     state.githubToken = tokenInput.value.trim();
     state.githubOrg = '';
-    state.githubRepo = '';
     state.githubRepositories = [];
-    renderGithubRepositoryOptions(orgSelect, repoSelect);
+    state.githubSelectedRepositories.clear();
+    renderGithubRepositoryOptions(orgSelect, repoList);
   });
 
   // Test connection
@@ -303,12 +303,7 @@ function initGithubConfigStep(): void {
 
   orgSelect.addEventListener('change', () => {
     state.githubOrg = orgSelect.value;
-    state.githubRepo = '';
-    renderGithubRepositoryOptions(orgSelect, repoSelect);
-  });
-
-  repoSelect.addEventListener('change', () => {
-    state.githubRepo = repoSelect.value;
+    renderGithubRepositoryOptions(orgSelect, repoList);
   });
 }
 
@@ -333,7 +328,7 @@ async function handleGithubConnectionTest(testBtn: HTMLButtonElement, statusCont
       state.githubRepositories = result.repositories ?? [];
       renderGithubRepositoryOptions(
         $<HTMLSelectElement>('#github-org'),
-        $<HTMLSelectElement>('#github-repo')
+        $<HTMLElement>('#github-repo-list')
       );
       showStatus(statusContainer, 'success', `Connected! Found ${result.projects_found ?? 0} accessible repositories.`);
     } else {
@@ -351,7 +346,7 @@ async function handleGithubConnectionTest(testBtn: HTMLButtonElement, statusCont
 }
 
 /** Populate GitHub owner and repository selectors from discovered repositories. */
-function renderGithubRepositoryOptions(orgSelect: HTMLSelectElement, repoSelect: HTMLSelectElement): void {
+function renderGithubRepositoryOptions(orgSelect: HTMLSelectElement, repoList: HTMLElement): void {
   const owners = [...new Set(state.githubRepositories.map((repository) => repository.owner))].sort((a, b) => a.localeCompare(b));
   orgSelect.innerHTML = '<option value="">Select an owner</option>';
   for (const owner of owners) {
@@ -361,13 +356,24 @@ function renderGithubRepositoryOptions(orgSelect: HTMLSelectElement, repoSelect:
   const repositoriesForOwner = state.githubRepositories
     .filter((repository) => repository.owner === state.githubOrg)
     .sort((a, b) => a.name.localeCompare(b.name));
-  repoSelect.innerHTML = state.githubOrg
-    ? '<option value="">Select a repository</option>'
-    : '<option value="">Select an owner first</option>';
-  for (const repository of repositoriesForOwner) {
-    const label = `${repository.name}${repository.private ? ' (private)' : ''}${repository.archived ? ' (archived)' : ''}`;
-    repoSelect.appendChild(selectOption(repository.name, label, repository.name === state.githubRepo));
+  repoList.innerHTML = '';
+  if (!state.githubOrg) {
+    repoList.appendChild(hint('Select an owner first.'));
+    updateGithubRepositoryCount();
+    return;
   }
+
+  if (repositoriesForOwner.length === 0) {
+    repoList.appendChild(hint('No repositories found for this owner.'));
+    updateGithubRepositoryCount();
+    return;
+  }
+
+  for (const repository of repositoriesForOwner) {
+    repoList.appendChild(repositoryCheckbox(repository));
+  }
+
+  updateGithubRepositoryCount();
 }
 
 function selectOption(value: string, label: string, selected: boolean): HTMLOptionElement {
@@ -376,6 +382,52 @@ function selectOption(value: string, label: string, selected: boolean): HTMLOpti
   option.textContent = label;
   option.selected = selected;
   return option;
+}
+
+function repositoryCheckbox(repository: RepositoryOption): HTMLLabelElement {
+  const label = document.createElement('label');
+  label.className = 'multi-select-option';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.value = repositoryKey(repository);
+  checkbox.checked = state.githubSelectedRepositories.has(repositoryKey(repository));
+  checkbox.addEventListener('change', () => {
+    const key = repositoryKey(repository);
+    if (checkbox.checked) {
+      state.githubSelectedRepositories.set(key, repository);
+    } else {
+      state.githubSelectedRepositories.delete(key);
+    }
+    updateGithubRepositoryCount();
+  });
+
+  const text = document.createElement('span');
+  text.className = 'multi-select-option-text';
+  text.textContent = `${repository.name}${repository.private ? ' (private)' : ''}${repository.archived ? ' (archived)' : ''}`;
+
+  label.append(checkbox, text);
+  return label;
+}
+
+function hint(message: string): HTMLParagraphElement {
+  const paragraph = document.createElement('p');
+  paragraph.className = 'form-hint';
+  paragraph.textContent = message;
+  return paragraph;
+}
+
+function updateGithubRepositoryCount(): void {
+  const count = state.githubSelectedRepositories.size;
+  $<HTMLElement>('#github-repo-count').textContent = `${count} ${count === 1 ? 'repository' : 'repositories'} selected.`;
+}
+
+function repositoryKey(repository: Pick<RepositoryOption, 'owner' | 'name'>): string {
+  return `${repository.owner.toLowerCase()}/${repository.name.toLowerCase()}`;
+}
+
+function selectedGithubRepositories(): RepositoryOption[] {
+  return [...state.githubSelectedRepositories.values()].sort((a, b) => a.full_name.localeCompare(b.full_name));
 }
 
 // ── Step: SonarCloud config ──────────────────────────────────────────
@@ -500,8 +552,10 @@ function buildSetupSources(): SaveSetupSource[] {
       enabled: true,
       token: state.githubToken || undefined,
       options: {
-        owner: state.githubOrg || undefined,
-        repo: state.githubRepo || undefined,
+        repositories: selectedGithubRepositories().map((repository) => ({
+          owner: repository.owner,
+          repo: repository.name,
+        })),
       },
     });
   }
@@ -786,8 +840,8 @@ async function handleNextNavigation(nextBtn: HTMLButtonElement): Promise<void> {
     const next = getNextStep(state.currentStep);
     if (!next) return;
 
-    if (state.currentStep === 'github-config' && !hasSelectedGithubRepository()) {
-      showStatus($<HTMLElement>('#github-status'), 'error', 'Test the GitHub connection and select a repository before continuing.');
+    if (state.currentStep === 'github-config' && !hasSelectedGithubRepositories()) {
+      showStatus($<HTMLElement>('#github-status'), 'error', 'Test the GitHub connection and select at least one repository before continuing.');
       return;
     }
 
@@ -799,8 +853,8 @@ async function handleNextNavigation(nextBtn: HTMLButtonElement): Promise<void> {
     goToStep(next);
 }
 
-function hasSelectedGithubRepository(): boolean {
-  return Boolean(state.githubToken && state.githubOrg && state.githubRepo);
+function hasSelectedGithubRepositories(): boolean {
+  return Boolean(state.githubToken && state.githubSelectedRepositories.size > 0);
 }
 
 // ── Initialize ───────────────────────────────────────────────────────

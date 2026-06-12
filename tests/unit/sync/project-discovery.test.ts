@@ -44,8 +44,8 @@ describe('ProjectDiscoveryService', () => {
       ],
     });
     expect(result.results[0]?.next_steps).toEqual([
-      expect.stringContaining('Choose the project key'),
-      expect.stringContaining('project_keys[source_id]'),
+      expect.stringContaining('Choose every discovered project key'),
+      expect.stringMatching(/without source_ids.*project_keys/),
       expect.stringContaining('Optionally save'),
     ]);
   });

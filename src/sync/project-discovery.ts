@@ -211,9 +211,9 @@ function nextStepsForProjectCount(count: number, hasMore: boolean): string[] {
   }
 
   const steps = [
-    'Choose the project key that matches the current repository before running findingbridge_sync_sources.',
-    'Pass the selected key to findingbridge_sync_sources as project_keys[source_id] to sync without editing configuration.',
-    'Optionally save the selected key as the source project_key in FindingBridge configuration for future syncs.',
+    'Choose every discovered project key that matches the current workspace repository across configured scanner sources before running findingbridge_sync_sources.',
+    'Call findingbridge_sync_sources without source_ids and pass project_keys for each matching source that needs a key, so default inference can include every current-project scanner source.',
+    'Optionally save each selected key as that source project_key in FindingBridge configuration for future syncs.',
   ];
 
   if (hasMore) {
