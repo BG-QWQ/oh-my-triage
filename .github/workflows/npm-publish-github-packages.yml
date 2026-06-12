@@ -6,13 +6,15 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   publish-github-packages:
     name: Publish @bg-qwq/findingbridge mirror
     runs-on: ubuntu-latest
     continue-on-error: true
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
