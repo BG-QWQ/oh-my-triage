@@ -1,12 +1,11 @@
 ﻿import type { AdapterFetchResult, BaseAdapter, ConnectionTestResult } from '../base-adapter.js';
-import { ErrorCodes } from '../../core/errors.js';
+import { FindingBridgeError } from '../../core/errors.js';
 import type { Finding } from '../../core/models/finding.js';
 import { FindingStatus } from '../../core/models/common.js';
 import { generateFingerprint } from '../../utils/hash.js';
 import { mapFields } from '../../core/normalization/field-mapper.js';
 import { normalizeSeverity } from '../../core/normalization/severity-mapper.js';
-import { toAdapterError } from '../adapter-errors.js';
-import { GitHubClient, type GitHubClientOptions } from './github-client.js';
+import { GitHubClient, type GitHubClientOptions, type GitHubConnectionValidation } from './github-client.js';
 import type { GitHubCodeScanningAlert, GitHubRepository } from './github-schemas.js';
 
 /** Configuration for syncing GitHub Code Scanning alerts. */
@@ -27,32 +26,47 @@ export class GitHubAdapter implements BaseAdapter {
     this.projectRoot = options.projectRoot;
   }
 
-  /** Test GitHub repository access and token scopes without exposing credential material. */
+  /**
+   * Test GitHub repository access and token scopes.
+   *
+   * Validates the token and lists accessible repositories as two separate
+   * steps so that an invalid token is not confused with a
+   * repository-permission failure. Each failure path returns a distinct,
+   * actionable error message.
+   */
   async testConnection(): Promise<ConnectionTestResult> {
+    // Step 1: validate token identity and scopes.
+    let validation: GitHubConnectionValidation;
     try {
-      const result = await this.client.validateConnection();
-      const repositories = await this.client.listAccessibleRepositories();
-      const owners = new Set(repositories.map((repository) => repository.owner.login));
-      return {
-        valid: true,
-        reason: result.observedScopes.length
-          ? `GitHub connection validated with scopes: ${result.observedScopes.join(', ')}.`
-          : 'GitHub connection validated; GitHub did not return OAuth scope headers.',
-        projects_found: repositories.length,
-        orgs_found: owners.size,
-        repositories: repositories.map(mapGitHubRepositoryOption),
-      };
+      validation = await this.client.validateConnection();
     } catch (error: unknown) {
-      const adapterError = toAdapterError(error, {
-        code: ErrorCodes.ADAPTER_CONNECTION_FAILED,
-        message: 'GitHub connection test failed.',
-        nextSteps: [
-          'Verify the repository owner/name and token permissions.',
-          'Regenerate the token if GitHub reports it as invalid or expired.',
-        ],
-      });
-      return { valid: false, reason: adapterError.message, suggestion: adapterError.nextSteps.join(' ') };
+      return connectionFailure(error, 'GitHub token validation failed.', [
+        'Verify the token is correct and not expired.',
+        'Regenerate the token if GitHub reports it as invalid or expired.',
+      ]);
     }
+
+    // Step 2: list repositories accessible to the token.
+    let repositories: GitHubRepository[];
+    try {
+      repositories = await this.client.listAccessibleRepositories();
+    } catch (error: unknown) {
+      return connectionFailure(error, 'GitHub token is valid but repository listing failed.', [
+        'Ensure the token has the "repo" scope to list repositories.',
+        'Fine-grained tokens require "Metadata" and "Contents" read permissions.',
+      ]);
+    }
+
+    const owners = new Set(repositories.map((repository) => repository.owner.login));
+    return {
+      valid: true,
+      reason: validation.observedScopes.length
+        ? `GitHub connection validated with scopes: ${validation.observedScopes.join(', ')}.`
+        : 'GitHub connection validated; GitHub did not return OAuth scope headers.',
+      projects_found: repositories.length,
+      orgs_found: owners.size,
+      repositories: repositories.map(mapGitHubRepositoryOption),
+    };
   }
 
   /** Fetch a page of GitHub Code Scanning alerts using REST pagination with per_page=100. */
@@ -164,4 +178,21 @@ function cweFromTags(tags?: string[] | null): string | undefined {
 
 function owaspFromTags(tags?: string[] | null): string | undefined {
   return tags?.find((tag) => /^OWASP/i.test(tag));
+}
+
+/**
+ * Build a connection-test failure result with step-specific guidance.
+ *
+ * Preserves the original HTTP error message from `FindingBridgeError` so the
+ * user sees the exact GitHub response, but overrides the suggestion with
+ * next steps tailored to which step (token validation vs repository listing)
+ * failed. For non-FindingBridgeError failures (e.g. Zod validation, network),
+ * the fallback message prefixes the error detail.
+ */
+function connectionFailure(error: unknown, fallbackMessage: string, nextSteps: string[]): ConnectionTestResult {
+  if (error instanceof FindingBridgeError) {
+    return { valid: false, reason: error.message, suggestion: nextSteps.join(' ') };
+  }
+  const detail = error instanceof Error ? error.message : String(error);
+  return { valid: false, reason: `${fallbackMessage} ${detail}`.trim(), suggestion: nextSteps.join(' ') };
 }
