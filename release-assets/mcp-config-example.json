@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "findingbridge": {
-      "command": "findingbridge",
+    "oh-my-triage": {
+      "command": "oh-my-triage",
       "args": ["server"],
       "env": {
-        "FINDINGBRIDGE_DB_PATH": "~/.findingbridge/data.db"
+        "OMT_DB_PATH": "~/.oh-my-triage/data.db"
       }
     }
   }

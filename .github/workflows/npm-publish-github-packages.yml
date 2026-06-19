@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   publish-github-packages:
-    name: Publish @bg-qwq/findingbridge mirror
+    name: Publish @bg-qwq/oh-my-triage mirror
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
@@ -44,7 +44,7 @@ jobs:
 
       - name: Rewrite package metadata for GitHub Packages mirror
         run: |
-          npm pkg set name=@bg-qwq/findingbridge
+          npm pkg set name=@bg-qwq/oh-my-triage
           npm pkg set publishConfig.registry=https://npm.pkg.github.com/
 
       - name: Validate mirror package contents

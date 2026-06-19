@@ -4,6 +4,7 @@ dist/
 coverage/
 .env
 .env.local
+.oh-my-triage/
 .findingbridge/
 *.db
 *.db-journal

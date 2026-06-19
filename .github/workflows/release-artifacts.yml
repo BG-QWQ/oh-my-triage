@@ -84,7 +84,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $packageName = "findingbridge-${{ github.event.release.tag_name }}-${{ matrix.artifact_suffix }}"
+          $packageName = "oh-my-triage-${{ github.event.release.tag_name }}-${{ matrix.artifact_suffix }}"
           $stageRoot = Join-Path $env:RUNNER_TEMP $packageName
           New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
           New-Item -ItemType Directory -Path (Join-Path $stageRoot 'bin') -Force | Out-Null
@@ -103,15 +103,25 @@ jobs:
             @(
               '@echo off',
               '"%~dp0bin\node.exe" "%~dp0dist\cli\index.js" %*'
-            ) | Set-Content -LiteralPath (Join-Path $stageRoot 'findingbridge.cmd') -Encoding ASCII
+            ) | Set-Content -LiteralPath (Join-Path $stageRoot 'oh-my-triage.cmd') -Encoding ASCII
+            @(
+              '@echo off',
+              '"%~dp0bin\node.exe" "%~dp0dist\cli\index.js" %*'
+            ) | Set-Content -LiteralPath (Join-Path $stageRoot 'omt.cmd') -Encoding ASCII
           } else {
             Copy-Item -LiteralPath $nodePath -Destination (Join-Path $stageRoot 'bin/node') -Force
             @(
               '#!/usr/bin/env sh',
               'DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"',
               'exec "$DIR/bin/node" "$DIR/dist/cli/index.js" "$@"'
-            ) | Set-Content -LiteralPath (Join-Path $stageRoot 'findingbridge') -Encoding UTF8
-            chmod +x (Join-Path $stageRoot 'findingbridge')
+            ) | Set-Content -LiteralPath (Join-Path $stageRoot 'oh-my-triage') -Encoding UTF8
+            @(
+              '#!/usr/bin/env sh',
+              'DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"',
+              'exec "$DIR/bin/node" "$DIR/dist/cli/index.js" "$@"'
+            ) | Set-Content -LiteralPath (Join-Path $stageRoot 'omt') -Encoding UTF8
+            chmod +x (Join-Path $stageRoot 'oh-my-triage')
+            chmod +x (Join-Path $stageRoot 'omt')
             chmod +x (Join-Path $stageRoot 'bin/node')
           }
 
@@ -123,9 +133,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           if ($IsWindows) {
-            & (Join-Path $env:STAGE_ROOT 'findingbridge.cmd') --help
+            & (Join-Path $env:STAGE_ROOT 'oh-my-triage.cmd') --help
+            & (Join-Path $env:STAGE_ROOT 'omt.cmd') --help
           } else {
-            & (Join-Path $env:STAGE_ROOT 'findingbridge') --help
+            & (Join-Path $env:STAGE_ROOT 'oh-my-triage') --help
+            & (Join-Path $env:STAGE_ROOT 'omt') --help
           }
 
       - name: Create archive and checksum

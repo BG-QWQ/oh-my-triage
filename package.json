@@ -1,12 +1,13 @@
 {
-  "name": "findingbridge",
+  "name": "oh-my-triage",
   "version": "0.1.1",
   "description": "Open-source, self-hosted, privacy-first MCP-based triage layer for code/security scanner findings",
   "type": "module",
   "license": "Apache-2.0",
   "main": "dist/cli/index.js",
   "bin": {
-    "findingbridge": "dist/cli/index.js"
+    "oh-my-triage": "dist/cli/index.js",
+    "omt": "dist/cli/index.js"
   },
   "files": [
     "dist",
@@ -64,13 +65,13 @@
     "sast",
     "sca"
   ],
-  "author": "FindingBridge Contributors",
+  "author": "BG-QWQ",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BG-QWQ/FindingBridge.git"
+    "url": "git+https://github.com/BG-QWQ/oh-my-triage.git"
   },
   "bugs": {
-    "url": "https://github.com/BG-QWQ/FindingBridge/issues"
+    "url": "https://github.com/BG-QWQ/oh-my-triage/issues"
   },
-  "homepage": "https://github.com/BG-QWQ/FindingBridge#readme"
+  "homepage": "https://github.com/BG-QWQ/oh-my-triage#readme"
 }
