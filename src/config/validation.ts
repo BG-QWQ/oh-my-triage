@@ -3,7 +3,7 @@ import { z } from 'zod';
 /** Validate supported credential storage strategies for persisted configuration. */
 export const TokenStorageSchema = z.enum(['keychain', 'env', 'encrypted-file']);
 
-/** Validate a scanner source entry from FindingBridge configuration. */
+/** Validate a scanner source entry from oh-my-triage configuration. */
 export const SourceConfigSchema = z.object({
   id: z.string().min(1),
   type: z.enum(['sarif', 'github', 'sonarcloud', 'socket', 'snyk', 'semgrep', 'trivy', 'sbom']),
@@ -25,7 +25,7 @@ export const McpClientPathsSchema = z
   })
   .partial();
 
-/** Validate the complete FindingBridge configuration document. */
+/** Validate the complete oh-my-triage configuration document. */
 export const ConfigSchema = z.object({
   version: z.literal('1'),
   created_at: z.string().datetime(),

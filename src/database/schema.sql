@@ -1,4 +1,4 @@
--- FindingBridge SQLite Schema (v2)
+-- oh-my-triage SQLite Schema (v2)
 
 -- Normalized findings table
 CREATE TABLE IF NOT EXISTS findings (

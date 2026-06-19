@@ -19,7 +19,7 @@ export type ExpandGitHubSourcesInput = {
 /**
  * Expand selected GitHub repositories into one source per repository.
  *
- * FindingBridge sync isolation is source-scoped, so the setup wizard fans out a
+ * oh-my-triage sync isolation is source-scoped, so the setup wizard fans out a
  * multi-repository selection into the existing single-repository source shape
  * instead of introducing a repository list that sync would need to split later.
  */
