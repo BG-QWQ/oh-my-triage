@@ -10,7 +10,7 @@ import { SonarCloudClient } from '../adapters/sonarcloud/sonarcloud-client.js';
 import type { SonarCloudProject } from '../adapters/sonarcloud/sonarcloud-schemas.js';
 import { CredentialStore } from '../config/credential-store.js';
 import type { Config, SourceConfig } from '../config/validation.js';
-import { FindingBridgeError, ErrorCodes } from '../core/errors.js';
+import { OMTError, ErrorCodes } from '../core/errors.js';
 import { Finding, type Finding as FindingModel } from '../core/models/finding.js';
 import type { SyncLog } from '../core/models/sync-log.js';
 import { FindingRepository } from '../database/repositories/finding-repo.js';
@@ -78,7 +78,7 @@ export type SyncSourcesOptions = {
   allSources?: boolean;
 };
 
-/** Dependencies for synchronizing configured scanner sources into FindingBridge storage. */
+/** Dependencies for synchronizing configured scanner sources into oh-my-triage storage. */
 export type SourceSyncServiceOptions = {
   db: Database.Database;
   config: Config;
@@ -89,7 +89,7 @@ export type SourceSyncServiceOptions = {
   detectCurrentGitHubRepository?: () => Promise<GitHubRepositoryIdentity | undefined>;
 };
 
-/** Synchronize configured scanner sources into the local FindingBridge database. */
+/** Synchronize configured scanner sources into the local oh-my-triage database. */
 export class SourceSyncService {
   private readonly findings: FindingRepository;
   private readonly syncLogs: SyncRepository;
@@ -158,12 +158,12 @@ export class SourceSyncService {
         return selection;
       }
 
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: ErrorCodes.CONFIG_INVALID,
-        message: 'Multiple scanner sources are configured, and FindingBridge could not infer any current project sources to synchronize.',
+        message: 'Multiple scanner sources are configured, and oh-my-triage could not infer any current project sources to synchronize.',
         nextSteps: [
-          'Pass source_ids to findingbridge_sync_sources or repeat --source with the source IDs you want to sync.',
-          'Pass all_sources: true or use findingbridge sync --all when you intentionally want to synchronize every configured source.',
+          'Pass source_ids to omt_sync_sources or repeat --source with the source IDs you want to sync.',
+          'Pass all_sources: true or use oh-my-triage sync --all when you intentionally want to synchronize every configured source.',
           'Run sync from a GitHub repository whose origin remote matches one or more configured GitHub sources.',
           'For SonarCloud, save the matching project_key on the source or pass project_keys[source_id] for this sync run.',
           'Select SARIF sources explicitly with source_ids or all_sources because SARIF paths cannot be inferred from the current repository.',
@@ -221,10 +221,10 @@ export class SourceSyncService {
     if (!repository) {
       return {
         skipped: createSkippedSourceResult(source, {
-          message: `SonarCloud source ${source.id} needs a current GitHub repository before FindingBridge can infer a project key.`,
+          message: `SonarCloud source ${source.id} needs a current GitHub repository before oh-my-triage can infer a project key.`,
           nextSteps: [
             'Run sync from a GitHub repository whose origin remote matches the workspace under review.',
-            `Call findingbridge_list_source_projects for ${source.id}, choose the matching key, and pass project_keys[${source.id}] when syncing outside a GitHub repository.`,
+            `Call omt_list_source_projects for ${source.id}, choose the matching key, and pass project_keys[${source.id}] when syncing outside a GitHub repository.`,
           ],
         }),
       };
@@ -234,10 +234,10 @@ export class SourceSyncService {
     if (!organization) {
       return {
         skipped: createSkippedSourceResult(source, {
-          message: `SonarCloud source ${source.id} needs an organization before FindingBridge can infer a project key.`,
+          message: `SonarCloud source ${source.id} needs an organization before oh-my-triage can infer a project key.`,
           nextSteps: [
-            `Configure options.organization for ${source.id} or pass organizations[${source.id}] to findingbridge_list_source_projects.`,
-            `Choose the matching project key and pass project_keys[${source.id}] to findingbridge_sync_sources.`,
+            `Configure options.organization for ${source.id} or pass organizations[${source.id}] to omt_list_source_projects.`,
+            `Choose the matching project key and pass project_keys[${source.id}] to omt_sync_sources.`,
           ],
         }),
       };
@@ -246,10 +246,10 @@ export class SourceSyncService {
     try {
       const token = await this.tokenForSource(source);
       if (!token) {
-        throw new FindingBridgeError({
+        throw new OMTError({
           code: ErrorCodes.TOKEN_MISSING,
           message: `Token is missing for source ${source.id}.`,
-          nextSteps: [`Run findingbridge config set-token ${source.id} or rerun findingbridge setup.`],
+          nextSteps: [`Run oh-my-triage config set-token ${source.id} or rerun oh-my-triage setup.`],
           retryable: false,
         });
       }
@@ -257,10 +257,10 @@ export class SourceSyncService {
       if (projectList.truncated) {
         return {
           skipped: createSkippedSourceResult(source, {
-            message: `SonarCloud source ${source.id} project discovery reached max_pages before FindingBridge could prove a unique project match.`,
+            message: `SonarCloud source ${source.id} project discovery reached max_pages before oh-my-triage could prove a unique project match.`,
             nextSteps: [
-              'Rerun findingbridge_sync_sources with a higher max_pages value before relying on automatic SonarCloud project inference.',
-              `Alternatively call findingbridge_list_source_projects, confirm the intended key, and pass project_keys[${source.id}].`,
+              'Rerun omt_sync_sources with a higher max_pages value before relying on automatic SonarCloud project inference.',
+              `Alternatively call omt_list_source_projects, confirm the intended key, and pass project_keys[${source.id}].`,
             ],
           }),
         };
@@ -276,8 +276,8 @@ export class SourceSyncService {
           skipped: createSkippedSourceResult(source, {
             message: `SonarCloud source ${source.id} matched multiple projects for ${repository.owner}/${repository.repo}.`,
             nextSteps: [
-              `FindingBridge will not fuzzy auto-sync ambiguous SonarCloud projects: ${formatProjectCandidates(match.projects)}.`,
-              `Choose the intended project and pass project_keys[${source.id}] to findingbridge_sync_sources.`,
+              `oh-my-triage will not fuzzy auto-sync ambiguous SonarCloud projects: ${formatProjectCandidates(match.projects)}.`,
+              `Choose the intended project and pass project_keys[${source.id}] to omt_sync_sources.`,
             ],
           }),
         };
@@ -287,8 +287,8 @@ export class SourceSyncService {
         skipped: createSkippedSourceResult(source, {
           message: `SonarCloud source ${source.id} had no exact project match for ${repository.owner}/${repository.repo}.`,
           nextSteps: [
-            `Call findingbridge_list_source_projects for ${source.id} to inspect visible SonarCloud projects.`,
-            `Pass the confirmed key as project_keys[${source.id}] to findingbridge_sync_sources or save it as this source project_key.`,
+            `Call omt_list_source_projects for ${source.id} to inspect visible SonarCloud projects.`,
+            `Pass the confirmed key as project_keys[${source.id}] to omt_sync_sources or save it as this source project_key.`,
           ],
         }),
       };
@@ -359,10 +359,10 @@ export class SourceSyncService {
     if (source.type === 'github' || source.type === 'sonarcloud') {
       const token = await this.credentialStore.getToken(source.id, this.options.config.token_storage, source.token_ref);
       if (!token) {
-        throw new FindingBridgeError({
+        throw new OMTError({
           code: ErrorCodes.TOKEN_MISSING,
           message: `Token is missing for source ${source.id}.`,
-          nextSteps: [`Run findingbridge config set-token ${source.id} or rerun findingbridge setup.`],
+          nextSteps: [`Run oh-my-triage config set-token ${source.id} or rerun oh-my-triage setup.`],
           retryable: false,
         });
       }
@@ -376,10 +376,10 @@ export class SourceSyncService {
     switch (source.type) {
       case 'sarif': {
         if (!source.path) {
-          throw new FindingBridgeError({
+          throw new OMTError({
             code: ErrorCodes.CONFIG_INVALID,
             message: `SARIF source ${source.id} has no path configured.`,
-            nextSteps: ['Set the SARIF path in setup or use findingbridge ingest --sarif path/to/results.sarif.'],
+            nextSteps: ['Set the SARIF path in setup or use oh-my-triage ingest --sarif path/to/results.sarif.'],
             retryable: false,
           });
         }
@@ -389,10 +389,10 @@ export class SourceSyncService {
         const owner = readStringOption(source, 'owner');
         const repo = readStringOption(source, 'repo');
         if (!token || !owner || !repo) {
-          throw new FindingBridgeError({
+          throw new OMTError({
             code: ErrorCodes.CONFIG_INVALID,
             message: `GitHub source ${source.id} requires token, owner, and repo.`,
-            nextSteps: ['Run findingbridge setup and select a GitHub repository, then retry sync.'],
+            nextSteps: ['Run oh-my-triage setup and select a GitHub repository, then retry sync.'],
             retryable: false,
           });
         }
@@ -400,12 +400,12 @@ export class SourceSyncService {
       }
       case 'sonarcloud': {
         if (!token || !source.project_key) {
-          throw new FindingBridgeError({
+          throw new OMTError({
             code: ErrorCodes.CONFIG_INVALID,
             message: `SonarCloud source ${source.id} requires token and project_key.`,
             nextSteps: [
-              'Call findingbridge_list_source_projects with organizations[source_id] if the SonarCloud source configuration does not include an organization.',
-              'Choose the project that matches the current repository and pass it to findingbridge_sync_sources as project_keys[source_id], or save it as this source project_key before retrying sync.',
+              'Call omt_list_source_projects with organizations[source_id] if the SonarCloud source configuration does not include an organization.',
+              'Choose the project that matches the current repository and pass it to omt_sync_sources as project_keys[source_id], or save it as this source project_key before retrying sync.',
             ],
             retryable: false,
           });
@@ -418,10 +418,10 @@ export class SourceSyncService {
         });
       }
       default: {
-        throw new FindingBridgeError({
+        throw new OMTError({
           code: ErrorCodes.CONFIG_INVALID,
           message: `Source type ${source.type} is configured but does not have a sync adapter yet.`,
-          nextSteps: ['Export the platform results as SARIF and run findingbridge ingest --sarif, or add a scanner adapter.'],
+          nextSteps: ['Export the platform results as SARIF and run oh-my-triage ingest --sarif, or add a scanner adapter.'],
           retryable: false,
         });
       }
@@ -494,7 +494,7 @@ export class SourceSyncService {
       stale_isolation_applied: staleIsolationApplied,
       pages_fetched: pagesFetched,
       next_steps: fetchComplete
-        ? ['Call findingbridge_summary or findingbridge_list_findings to inspect synchronized findings.']
+        ? ['Call omt_summary or omt_list_findings to inspect synchronized findings.']
         : ['More pages are available. Rerun sync with a higher max_pages value if you need the full scanner result set.'],
     };
   }
@@ -518,13 +518,13 @@ export class SourceSyncService {
   }
 
   private nextStepsForError(source: SourceConfig, error: unknown): string[] {
-    if (error instanceof FindingBridgeError && error.nextSteps.length) {
+    if (error instanceof OMTError && error.nextSteps.length) {
       return error.nextSteps.map((step) => redactSecrets(step));
     }
 
     return [
       `Check the ${source.type} source configuration and credentials.`,
-      'Run findingbridge config test before retrying synchronization.',
+      'Run oh-my-triage config test before retrying synchronization.',
     ];
   }
 }

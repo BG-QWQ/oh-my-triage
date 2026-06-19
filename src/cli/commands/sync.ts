@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { loadOrCreateConfig } from '../../config/config.js';
-import { FindingBridgeError, ErrorCodes } from '../../core/errors.js';
+import { OMTError, ErrorCodes } from '../../core/errors.js';
 import { closeConnection, createConnection } from '../../database/connection.js';
 import { SourceSyncService } from '../../sync/source-sync.js';
 
@@ -23,12 +23,12 @@ export function createSyncCommand(): Command {
     .option('--max-pages <number>', 'Maximum pages to fetch per source', String(20))
     .action(async (options: SyncOptions) => {
       const loadedConfig = await loadOrCreateConfig(options.config);
-      const dbPath = options.db ?? loadedConfig.config.database_path;
+      const dbPath = options.db ?? process.env.OMT_DB_PATH ?? process.env.FINDINGBRIDGE_DB_PATH ?? loadedConfig.config.database_path;
       if (!dbPath) {
-        throw new FindingBridgeError({
+        throw new OMTError({
           code: ErrorCodes.DB_CONNECTION_FAILED,
           message: 'Database path is not configured.',
-          nextSteps: ['Run `findingbridge init` or pass `--db path/to/findingbridge.db`.'],
+          nextSteps: ['Run `oh-my-triage init` (or `omt init`) or pass `--db path/to/oh-my-triage.db`.'],
         });
       }
 
@@ -57,7 +57,7 @@ function parsePositiveInt(value: string | undefined, name: string): number | und
   }
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed) || parsed < 1) {
-    throw new FindingBridgeError({
+    throw new OMTError({
       code: ErrorCodes.CONFIG_INVALID,
       message: `${name} must be a positive integer.`,
       nextSteps: [`Pass --${name} with a value of 1 or greater.`],

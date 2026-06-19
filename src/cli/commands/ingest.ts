@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { SarifAdapter } from '../../adapters/sarif/sarif-adapter.js';
-import { FindingBridgeError, ErrorCodes } from '../../core/errors.js';
+import { OMTError, ErrorCodes } from '../../core/errors.js';
 import type { Finding } from '../../core/models/finding.js';
 import { createConnection, closeConnection } from '../../database/connection.js';
 import { FindingRepository } from '../../database/repositories/finding-repo.js';
@@ -23,20 +23,20 @@ export function createIngestCommand(): Command {
     .option('-c, --config <path>', 'Configuration file path')
     .action(async (options: IngestOptions) => {
       if (!options.sarif) {
-        throw new FindingBridgeError({
+        throw new OMTError({
           code: ErrorCodes.SARIF_FILE_NOT_FOUND,
           message: 'A SARIF file path is required.',
-          nextSteps: ['Run `findingbridge ingest --sarif path/to/results.sarif`.'],
+          nextSteps: ['Run `oh-my-triage ingest --sarif path/to/results.sarif` (or `omt ingest --sarif path/to/results.sarif`).'],
         });
       }
 
       const loadedConfig = await loadOrCreateConfig(options.config);
-      const dbPath = options.db ?? loadedConfig.config.database_path;
+      const dbPath = options.db ?? process.env.OMT_DB_PATH ?? process.env.FINDINGBRIDGE_DB_PATH ?? loadedConfig.config.database_path;
       if (!dbPath) {
-        throw new FindingBridgeError({
+        throw new OMTError({
           code: ErrorCodes.DB_CONNECTION_FAILED,
           message: 'Database path is not configured.',
-          nextSteps: ['Run `findingbridge init` or pass `--db path/to/findingbridge.db`.'],
+          nextSteps: ['Run `oh-my-triage init` (or `omt init`) or pass `--db path/to/oh-my-triage.db`.'],
         });
       }
 
@@ -55,7 +55,7 @@ export function createIngestCommand(): Command {
     });
 }
 
-/** Parse a SARIF 2.1.0 file into normalized FindingBridge findings. */
+/** Parse a SARIF 2.1.0 file into normalized oh-my-triage findings. */
 export async function parseSarifFile(filePath: string): Promise<Finding[]> {
   const adapter = new SarifAdapter({ filePath });
   const result = await adapter.fetchFindings();

@@ -1,4 +1,4 @@
-﻿import { ErrorCodes, FindingBridgeError } from '../../core/errors.js';
+import { ErrorCodes, OMTError } from '../../core/errors.js';
 import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
 import {
   GitHubCodeScanningAlertPageSchema,
@@ -54,12 +54,12 @@ export class GitHubClient {
     const observedScopes = parseScopes(response.headers.get('x-oauth-scopes'));
     const missingScopes = missingRequiredScopes(observedScopes, REQUIRED_SCOPES);
     if (observedScopes.length > 0 && missingScopes.length > 0) {
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: ErrorCodes.PERMISSION_DENIED,
         message: `GitHub token is missing required scope(s): ${missingScopes.join(', ')}.`,
         nextSteps: [
           'Create a GitHub token with code scanning/security events read access for the repository.',
-          'Update the FindingBridge GitHub token and rerun the connection test.',
+          'Update the oh-my-triage GitHub token and rerun the connection test.',
         ],
         retryable: false,
         details: { observed_scopes: observedScopes, required_scopes: REQUIRED_SCOPES },
@@ -72,10 +72,10 @@ export class GitHubClient {
   async listCodeScanningAlerts(page: number): Promise<GitHubCodeScanningAlertPage> {
     try {
       if (!this.owner || !this.repo) {
-        throw new FindingBridgeError({
+        throw new OMTError({
           code: ErrorCodes.CONFIG_INVALID,
           message: 'GitHub Code Scanning sync requires repository owner and name.',
-          nextSteps: ['Run FindingBridge setup and select a GitHub repository before syncing findings.'],
+          nextSteps: ['Run oh-my-triage setup and select a GitHub repository before syncing findings.'],
           retryable: false,
         });
       }
@@ -122,7 +122,7 @@ export class GitHubClient {
       headers: {
         Accept: 'application/vnd.github+json',
         Authorization: `Bearer ${this.token}`,
-        'User-Agent': 'FindingBridge/0.1',
+        'User-Agent': 'oh-my-triage/0.1',
         'X-GitHub-Api-Version': '2022-11-28',
       },
     });

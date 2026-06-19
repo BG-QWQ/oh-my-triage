@@ -1,5 +1,5 @@
-﻿import type { AdapterFetchResult, BaseAdapter, ConnectionTestResult } from '../base-adapter.js';
-import { FindingBridgeError } from '../../core/errors.js';
+import type { AdapterFetchResult, BaseAdapter, ConnectionTestResult } from '../base-adapter.js';
+import { OMTError } from '../../core/errors.js';
 import type { Finding } from '../../core/models/finding.js';
 import { FindingStatus } from '../../core/models/common.js';
 import { generateFingerprint } from '../../utils/hash.js';
@@ -183,14 +183,14 @@ function owaspFromTags(tags?: string[] | null): string | undefined {
 /**
  * Build a connection-test failure result with step-specific guidance.
  *
- * Preserves the original HTTP error message from `FindingBridgeError` so the
+ * Preserves the original HTTP error message from `OMTError` so the
  * user sees the exact GitHub response, but overrides the suggestion with
  * next steps tailored to which step (token validation vs repository listing)
- * failed. For non-FindingBridgeError failures (e.g. Zod validation, network),
+ * failed. For non-OMTError failures (e.g. Zod validation, network),
  * the fallback message prefixes the error detail.
  */
 function connectionFailure(error: unknown, fallbackMessage: string, nextSteps: string[]): ConnectionTestResult {
-  if (error instanceof FindingBridgeError) {
+  if (error instanceof OMTError) {
     return { valid: false, reason: error.message, suggestion: nextSteps.join(' ') };
   }
   const detail = error instanceof Error ? error.message : String(error);

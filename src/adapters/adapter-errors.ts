@@ -1,5 +1,5 @@
-﻿import { z } from 'zod';
-import { FindingBridgeError, ErrorCodes } from '../core/errors.js';
+import { z } from 'zod';
+import { OMTError, ErrorCodes } from '../core/errors.js';
 import { redactSecrets } from '../utils/redaction.js';
 
 /** Adapter-specific error context with redacted diagnostics. */
@@ -11,14 +11,14 @@ export type AdapterErrorContext = {
   details?: Record<string, unknown>;
 };
 
-/** Convert unknown adapter failures into actionable FindingBridge errors. */
-export function toAdapterError(error: unknown, fallback: AdapterErrorContext): FindingBridgeError {
-  if (error instanceof FindingBridgeError) {
+/** Convert unknown adapter failures into actionable oh-my-triage errors. */
+export function toAdapterError(error: unknown, fallback: AdapterErrorContext): OMTError {
+  if (error instanceof OMTError) {
     return error;
   }
 
   if (error instanceof z.ZodError) {
-    return new FindingBridgeError({
+    return new OMTError({
       code: fallback.code,
       message: `${fallback.message} Response validation failed: ${error.issues
         .map((issue) => issue.path.join('.') || issue.message)
@@ -31,7 +31,7 @@ export function toAdapterError(error: unknown, fallback: AdapterErrorContext): F
   }
 
   const message = error instanceof Error ? error.message : String(error);
-  return new FindingBridgeError({
+  return new OMTError({
     code: fallback.code,
     message: `${fallback.message} ${redactSecrets(message)}`.trim(),
     nextSteps: fallback.nextSteps,
@@ -48,19 +48,19 @@ export function createHttpAdapterError(params: {
   body?: string;
   requiredScopes?: string[];
   observedScopes?: string[];
-}): FindingBridgeError {
+}): OMTError {
   const body = params.body ? ` Body: ${redactSecrets(params.body).slice(0, 500)}` : '';
   const scopeMessage = params.requiredScopes?.length
     ? ` Required scopes: ${params.requiredScopes.join(', ')}. Observed scopes: ${(params.observedScopes ?? []).join(', ') || 'unavailable'}.`
     : '';
 
   if (params.status === 401) {
-    return new FindingBridgeError({
+    return new OMTError({
       code: ErrorCodes.TOKEN_INVALID,
       message: `${params.source} token was rejected.${scopeMessage}${body}`,
       nextSteps: [
         `Create a new ${params.source} token with the documented scanner permissions.`,
-        'Update the FindingBridge credential store with the new token.',
+        'Update the oh-my-triage credential store with the new token.',
         'Retry the connection test before fetching findings.',
       ],
       retryable: false,
@@ -68,7 +68,7 @@ export function createHttpAdapterError(params: {
   }
 
   if (params.status === 403) {
-    return new FindingBridgeError({
+    return new OMTError({
       code: ErrorCodes.PERMISSION_DENIED,
       message: `${params.source} denied access.${scopeMessage}${body}`,
       nextSteps: [
@@ -81,7 +81,7 @@ export function createHttpAdapterError(params: {
   }
 
   if (params.status === 404) {
-    return new FindingBridgeError({
+    return new OMTError({
       code: ErrorCodes.ADAPTER_FETCH_FAILED,
       message: `${params.source} resource was not found.${body}`,
       nextSteps: [
@@ -93,18 +93,18 @@ export function createHttpAdapterError(params: {
   }
 
   if (params.status === 429) {
-    return new FindingBridgeError({
+    return new OMTError({
       code: ErrorCodes.ADAPTER_RATE_LIMITED,
       message: `${params.source} rate limit was exceeded.${body}`,
       nextSteps: [
         'Wait for the API rate limit window to reset.',
-        'Reduce concurrent FindingBridge syncs or fetch a smaller page range.',
+        'Reduce concurrent oh-my-triage syncs or fetch a smaller page range.',
       ],
       retryable: true,
     });
   }
 
-  return new FindingBridgeError({
+  return new OMTError({
     code: ErrorCodes.ADAPTER_FETCH_FAILED,
     message: `${params.source} request failed with HTTP ${params.status} ${params.statusText}.${body}`,
     nextSteps: [

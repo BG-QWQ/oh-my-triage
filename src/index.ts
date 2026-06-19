@@ -1,4 +1,4 @@
-/** Export the public API of FindingBridge */
+/** Export the public API of oh-my-triage */
 export { Finding } from './core/models/finding.js';
 export { Rule } from './core/models/rule.js';
 export { Report } from './core/models/report.js';

@@ -1,5 +1,5 @@
-/** Base error class for FindingBridge with actionable messages */
-export class FindingBridgeError extends Error {
+/** Base error class for oh-my-triage with actionable messages */
+export class OMTError extends Error {
   constructor(
     message: string,
     public readonly code: string,
@@ -7,12 +7,12 @@ export class FindingBridgeError extends Error {
     public readonly retryable: boolean = false
   ) {
     super(message)
-    this.name = 'FindingBridgeError'
+    this.name = 'OMTError'
   }
 }
 
 /** Error for invalid user input or configuration */
-export class ValidationError extends FindingBridgeError {
+export class ValidationError extends OMTError {
   constructor(message: string, nextSteps?: string[]) {
     super(message, 'VALIDATION_ERROR', nextSteps, true)
     this.name = 'ValidationError'
@@ -20,7 +20,7 @@ export class ValidationError extends FindingBridgeError {
 }
 
 /** Error for adapter/ingestion failures */
-export class AdapterError extends FindingBridgeError {
+export class AdapterError extends OMTError {
   constructor(
     message: string,
     public readonly source: string,
@@ -32,7 +32,7 @@ export class AdapterError extends FindingBridgeError {
 }
 
 /** Error for database operations */
-export class DatabaseError extends FindingBridgeError {
+export class DatabaseError extends OMTError {
   constructor(message: string, nextSteps?: string[]) {
     super(message, 'DATABASE_ERROR', nextSteps, false)
     this.name = 'DatabaseError'
@@ -40,7 +40,7 @@ export class DatabaseError extends FindingBridgeError {
 }
 
 /** Error for MCP tool execution failures */
-export class ToolError extends FindingBridgeError {
+export class ToolError extends OMTError {
   constructor(
     message: string,
     public readonly toolName: string,

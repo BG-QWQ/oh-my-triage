@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FindingBridgeError } from '../core/errors.js';
+import { OMTError } from '../core/errors.js';
 
 /** Connection test result */
 export const ConnectionTestResult = z.object({
@@ -48,7 +48,7 @@ export interface BaseAdapter {
 }
 
 /** Adapter error for connection failures */
-export class AdapterError extends FindingBridgeError {
+export class AdapterError extends OMTError {
   constructor(params: {
     code: string;
     message: string;

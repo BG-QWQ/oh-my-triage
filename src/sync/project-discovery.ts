@@ -2,7 +2,7 @@ import { SonarCloudClient } from '../adapters/sonarcloud/sonarcloud-client.js';
 import type { SonarCloudProject } from '../adapters/sonarcloud/sonarcloud-schemas.js';
 import { CredentialStore } from '../config/credential-store.js';
 import type { Config, SourceConfig } from '../config/validation.js';
-import { FindingBridgeError, ErrorCodes } from '../core/errors.js';
+import { OMTError, ErrorCodes } from '../core/errors.js';
 import { redactSecrets } from '../utils/redaction.js';
 
 const DEFAULT_MAX_PAGES = 10;
@@ -141,10 +141,10 @@ export class ProjectDiscoveryService {
   private async tokenForSource(source: SourceConfig): Promise<string> {
     const token = await this.credentialStore.getToken(source.id, this.options.config.token_storage, source.token_ref);
     if (!token) {
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: ErrorCodes.TOKEN_MISSING,
         message: `Token is missing for source ${source.id}.`,
-        nextSteps: [`Run findingbridge config set-token ${source.id} or rerun findingbridge setup.`],
+        nextSteps: [`Run oh-my-triage config set-token ${source.id} or rerun oh-my-triage setup.`],
         retryable: false,
       });
     }
@@ -183,13 +183,13 @@ export class ProjectDiscoveryService {
   }
 
   private nextStepsForError(source: SourceConfig, error: unknown): string[] {
-    if (error instanceof FindingBridgeError && error.nextSteps.length) {
+    if (error instanceof OMTError && error.nextSteps.length) {
       return error.nextSteps.map((step) => redactSecrets(step));
     }
 
     return [
       `Verify the ${source.type} source token can browse projects.`,
-      'Run findingbridge config test before retrying project discovery.',
+      'Run oh-my-triage config test before retrying project discovery.',
     ];
   }
 }
@@ -211,9 +211,9 @@ function nextStepsForProjectCount(count: number, hasMore: boolean): string[] {
   }
 
   const steps = [
-    'Choose every discovered project key that matches the current workspace repository across configured scanner sources before running findingbridge_sync_sources.',
-    'Call findingbridge_sync_sources without source_ids and pass project_keys for each matching source that needs a key, so default inference can include every current-project scanner source.',
-    'Optionally save each selected key as that source project_key in FindingBridge configuration for future syncs.',
+    'Choose every discovered project key that matches the current workspace repository across configured scanner sources before running omt_sync_sources.',
+    'Call omt_sync_sources without source_ids and pass project_keys for each matching source that needs a key, so default inference can include every current-project scanner source.',
+    'Optionally save each selected key as that source project_key in oh-my-triage configuration for future syncs.',
   ];
 
   if (hasMore) {
@@ -243,13 +243,13 @@ function applyDiscoveryOverrides(source: SourceConfig, options: DiscoverProjects
   };
 }
 
-function missingOrganizationError(sourceId: string): FindingBridgeError {
-  return new FindingBridgeError({
+function missingOrganizationError(sourceId: string): OMTError {
+  return new OMTError({
     code: ErrorCodes.CONFIG_INVALID,
     message: `SonarCloud source ${sourceId} requires organization to list projects.`,
     nextSteps: [
-      `Call findingbridge_list_source_projects with organizations: { "${sourceId}": "your-org-key" } to list projects without editing configuration.`,
-      'Optionally save the organization in FindingBridge source configuration for future project discovery.',
+      `Call omt_list_source_projects with organizations: { "${sourceId}": "your-org-key" } to list projects without editing configuration.`,
+      'Optionally save the organization in oh-my-triage source configuration for future project discovery.',
     ],
     retryable: false,
   });

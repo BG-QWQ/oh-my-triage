@@ -11,8 +11,8 @@ export const ActionableError = z.object({
 
 export type ActionableError = z.infer<typeof ActionableError>;
 
-/** Base error class for FindingBridge with actionable context */
-export class FindingBridgeError extends Error {
+/** Base error class for oh-my-triage with actionable context */
+export class OMTError extends Error {
   public readonly code: string;
   public readonly nextSteps: string[];
   public readonly retryable: boolean;
@@ -26,7 +26,7 @@ export class FindingBridgeError extends Error {
     details?: Record<string, unknown>;
   }) {
     super(params.message);
-    this.name = 'FindingBridgeError';
+    this.name = 'OMTError';
     this.code = params.code;
     this.nextSteps = params.nextSteps ?? [];
     this.retryable = params.retryable ?? false;

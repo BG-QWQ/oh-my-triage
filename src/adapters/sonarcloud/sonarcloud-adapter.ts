@@ -1,5 +1,5 @@
-﻿import type { AdapterFetchResult, BaseAdapter, ConnectionTestResult } from '../base-adapter.js';
-import { ErrorCodes, FindingBridgeError } from '../../core/errors.js';
+import type { AdapterFetchResult, BaseAdapter, ConnectionTestResult } from '../base-adapter.js';
+import { ErrorCodes, OMTError } from '../../core/errors.js';
 import type { Finding } from '../../core/models/finding.js';
 import { FindingStatus } from '../../core/models/common.js';
 import { mapFields } from '../../core/normalization/field-mapper.js';
@@ -14,7 +14,7 @@ export type SonarCloudAdapterOptions = SonarCloudClientOptions & {
   projectRoot?: string;
 };
 
-/** Adapter that imports SonarCloud issues into FindingBridge findings. */
+/** Adapter that imports SonarCloud issues into oh-my-triage findings. */
 export class SonarCloudAdapter implements BaseAdapter {
   readonly sourceType = 'sonarcloud';
   readonly displayName = 'SonarCloud';
@@ -70,7 +70,7 @@ export class SonarCloudAdapter implements BaseAdapter {
   /** Fetch a page of SonarCloud issues using /api/issues/search pagination. */
   async fetchFindings(options: { cursor?: string; limit?: number } = {}): Promise<AdapterFetchResult> {
     if (!this.projectKey) {
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: ErrorCodes.CONFIG_INVALID,
         message: 'SonarCloud projectKey is required to fetch findings.',
         nextSteps: [

@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { z } from 'zod';
 import type { AdapterFetchResult, BaseAdapter, ConnectionTestResult } from '../base-adapter.js';
-import { FindingBridgeError, ErrorCodes } from '../../core/errors.js';
+import { OMTError, ErrorCodes } from '../../core/errors.js';
 import { SarifLogSchema } from './sarif-schema.js';
 import { mapSarifRunToFindings } from './sarif-result-mapper.js';
 import { toAdapterError } from '../adapter-errors.js';
@@ -14,7 +14,7 @@ export type SarifAdapterOptions = {
   projectRoot?: string;
 };
 
-/** Parse SARIF 2.1.0 files and normalize scanner results into FindingBridge findings. */
+/** Parse SARIF 2.1.0 files and normalize scanner results into oh-my-triage findings. */
 export class SarifAdapter implements BaseAdapter {
   readonly sourceType = 'sarif';
   readonly displayName = 'SARIF';
@@ -83,7 +83,7 @@ export class SarifAdapter implements BaseAdapter {
   private async readSarifFile() {
     const stats = await this.statFile();
     if (stats.size > MAX_SARIF_BYTES) {
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: ErrorCodes.SARIF_FILE_TOO_LARGE,
         message: `SARIF file is ${(stats.size / 1024 / 1024).toFixed(1)}MB, exceeding the 50MB limit.`,
         nextSteps: [
@@ -100,7 +100,7 @@ export class SarifAdapter implements BaseAdapter {
     try {
       parsed = JSON.parse(content);
     } catch (error: unknown) {
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: ErrorCodes.SARIF_PARSE_ERROR,
         message: `SARIF file contains malformed JSON: ${error instanceof Error ? error.message : String(error)}`,
         nextSteps: [
@@ -114,7 +114,7 @@ export class SarifAdapter implements BaseAdapter {
     const validation = SarifLogSchema.safeParse(parsed);
     if (!validation.success) {
       const versionIssue = validation.error.issues.find((issue) => issue.path.join('.') === 'version');
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: versionIssue ? ErrorCodes.SARIF_INVALID_VERSION : ErrorCodes.SARIF_PARSE_ERROR,
         message: `SARIF validation failed: ${validation.error.issues
           .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
@@ -135,7 +135,7 @@ export class SarifAdapter implements BaseAdapter {
     try {
       return await stat(this.filePath);
     } catch (error: unknown) {
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: ErrorCodes.SARIF_FILE_NOT_FOUND,
         message: `SARIF file was not found or is not readable: ${error instanceof Error ? error.message : String(error)}`,
         nextSteps: [
@@ -155,7 +155,7 @@ export function parseCursor(cursor?: string): number {
   }
   const parsed = z.coerce.number().int().min(0).safeParse(cursor);
   if (!parsed.success) {
-    throw new FindingBridgeError({
+    throw new OMTError({
       code: ErrorCodes.ADAPTER_FETCH_FAILED,
       message: `Invalid SARIF cursor '${cursor}'.`,
       nextSteps: ['Use the next_cursor returned by the previous fetchFindings call.'],
