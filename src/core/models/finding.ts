@@ -40,7 +40,7 @@ export type FixSuggestion = z.infer<typeof FixSuggestion>;
 /** Canonical normalized finding model */
 export const Finding = z.object({
   // Internal ID
-  id: z.string().regex(/^fb-[a-zA-Z0-9_-]+$/).describe('FindingBridge internal ID'),
+  id: z.string().regex(/^fb-[a-zA-Z0-9_-]+$/).describe('oh-my-triage internal ID; fb- prefix is retained for database compatibility'),
 
   // Source
   source: FindingSource,

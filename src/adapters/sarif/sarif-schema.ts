@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** SARIF message payload accepted by FindingBridge while preserving extension fields. */
+/** SARIF message payload accepted by oh-my-triage while preserving extension fields. */
 export type SarifMessage = {
   text?: string;
   markdown?: string;
@@ -9,7 +9,7 @@ export type SarifMessage = {
   [key: string]: unknown;
 };
 
-/** SARIF artifact location accepted by FindingBridge while preserving extension fields. */
+/** SARIF artifact location accepted by oh-my-triage while preserving extension fields. */
 export type SarifArtifactLocation = {
   uri?: string;
   uriBaseId?: string;
@@ -17,7 +17,7 @@ export type SarifArtifactLocation = {
   [key: string]: unknown;
 };
 
-/** SARIF source region accepted by FindingBridge while preserving snippet details. */
+/** SARIF source region accepted by oh-my-triage while preserving snippet details. */
 export type SarifRegion = {
   startLine?: number;
   startColumn?: number;
@@ -31,14 +31,14 @@ export type SarifRegion = {
   [key: string]: unknown;
 };
 
-/** SARIF physical location accepted by FindingBridge. */
+/** SARIF physical location accepted by oh-my-triage. */
 export type SarifPhysicalLocation = {
   artifactLocation?: SarifArtifactLocation;
   region?: SarifRegion;
   [key: string]: unknown;
 };
 
-/** SARIF location accepted by FindingBridge. */
+/** SARIF location accepted by oh-my-triage. */
 export type SarifLocation = {
   id?: number;
   physicalLocation?: SarifPhysicalLocation;
@@ -46,7 +46,7 @@ export type SarifLocation = {
   [key: string]: unknown;
 };
 
-/** SARIF default rule configuration accepted by FindingBridge. */
+/** SARIF default rule configuration accepted by oh-my-triage. */
 export type SarifRuleConfiguration = {
   enabled?: boolean;
   level?: 'none' | 'note' | 'warning' | 'error';
@@ -68,7 +68,7 @@ export type SarifRule = {
   [key: string]: unknown;
 };
 
-/** SARIF tool component accepted by FindingBridge. */
+/** SARIF tool component accepted by oh-my-triage. */
 export type SarifToolComponent = {
   name: string;
   fullName?: string;
@@ -109,7 +109,7 @@ export type SarifRun = {
   [key: string]: unknown;
 };
 
-/** SARIF 2.1.0 log accepted by the FindingBridge SARIF adapter. */
+/** SARIF 2.1.0 log accepted by the oh-my-triage SARIF adapter. */
 export type SarifLog = {
   version: '2.1.0';
   $schema?: string;

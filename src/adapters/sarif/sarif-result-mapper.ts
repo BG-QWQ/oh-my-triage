@@ -1,4 +1,4 @@
-﻿import type { Finding } from '../../core/models/finding.js';
+import type { Finding } from '../../core/models/finding.js';
 import { FindingStatus } from '../../core/models/common.js';
 import { mapFields } from '../../core/normalization/field-mapper.js';
 import { normalizeSeverity } from '../../core/normalization/severity-mapper.js';
@@ -12,7 +12,7 @@ export type SarifMappingOptions = {
   now?: string;
 };
 
-/** Map every result from a SARIF run into FindingBridge findings. */
+/** Map every result from a SARIF run into oh-my-triage findings. */
 export function mapSarifRunToFindings(run: SarifRun, options: SarifMappingOptions = {}): Finding[] {
   const rules = buildRuleIndex(run);
   return (run.results ?? []).map((result, index) => mapSarifResultToFinding(run, result, index, rules, options));

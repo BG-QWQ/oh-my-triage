@@ -481,7 +481,7 @@ describe('SourceSyncService', () => {
 
     expect(result).toMatchObject({ sources_total: 2, sources_synced: 1, sources_skipped: 1 });
     expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web']);
-    expectSkippedSource(result, 'sonarcloud-web', 'SonarCloud source sonarcloud-web project discovery reached max_pages before FindingBridge could prove a unique project match.');
+    expectSkippedSource(result, 'sonarcloud-web', 'SonarCloud source sonarcloud-web project discovery reached max_pages before oh-my-triage could prove a unique project match.');
   });
 
   it('skips SonarCloud inference when matching projects appear across multiple pages', async () => {

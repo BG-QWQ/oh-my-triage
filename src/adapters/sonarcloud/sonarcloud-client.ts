@@ -1,4 +1,4 @@
-﻿import { ErrorCodes, FindingBridgeError } from '../../core/errors.js';
+import { ErrorCodes, OMTError } from '../../core/errors.js';
 import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
 import {
   SonarCloudAuthValidationSchema,
@@ -37,12 +37,12 @@ export class SonarCloudClient {
     const body = await response.json() as unknown;
     const parsed = SonarCloudAuthValidationSchema.parse(body);
     if (!parsed.valid) {
-      throw new FindingBridgeError({
+      throw new OMTError({
         code: ErrorCodes.TOKEN_INVALID,
         message: 'SonarCloud token validation returned valid=false.',
         nextSteps: [
           'Generate a new SonarCloud user token.',
-          'Update the FindingBridge SonarCloud credential and rerun the connection test.',
+          'Update the oh-my-triage SonarCloud credential and rerun the connection test.',
         ],
         retryable: false,
       });
@@ -94,7 +94,7 @@ export class SonarCloudClient {
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${this.token}`,
-        'User-Agent': 'FindingBridge/0.1',
+        'User-Agent': 'oh-my-triage/0.1',
       },
     });
 

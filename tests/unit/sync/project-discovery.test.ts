@@ -130,7 +130,7 @@ describe('ProjectDiscoveryService', () => {
       source_id: 'sonarcloud',
       status: 'failed',
       error_message: expect.stringContaining('Token is missing'),
-      next_steps: [expect.stringContaining('findingbridge config set-token sonarcloud')],
+      next_steps: [expect.stringContaining('oh-my-triage config set-token sonarcloud')],
     });
   });
 });

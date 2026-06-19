@@ -18,11 +18,11 @@ describe('GitHubClient', () => {
   });
 
   it('validates repository access when owner and repository are configured', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(repo('BG-QWQ', 'FindingBridge'), 'repo'));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(repo('BG-QWQ', 'oh-my-triage'), 'repo'));
     const client = new GitHubClient({
       token: 'token-123',
       owner: 'BG-QWQ',
-      repo: 'FindingBridge',
+      repo: 'oh-my-triage',
       apiBaseUrl: 'https://api.github.test',
     });
 
@@ -31,7 +31,7 @@ describe('GitHubClient', () => {
       observedScopes: ['repo'],
     });
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.github.test/repos/BG-QWQ/FindingBridge',
+      'https://api.github.test/repos/BG-QWQ/oh-my-triage',
       expect.any(Object)
     );
   });
