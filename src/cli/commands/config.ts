@@ -10,7 +10,7 @@ type ConfigCommandOptions = {
 
 /** Create the `config` command group for inspecting and updating configuration. */
 export function createConfigCommand(): Command {
-  const command = new Command('config').description('Manage FindingBridge configuration');
+  const command = new Command('config').description('Manage oh-my-triage configuration');
 
   command
     .command('show')
@@ -31,7 +31,7 @@ export function createConfigCommand(): Command {
         source_id: source.id,
         source_type: source.type,
         valid: source.type === 'sarif' ? Boolean(source.path) : Boolean(source.token_ref),
-        suggestion: source.type === 'sarif' ? 'Ensure the SARIF path exists before ingestion.' : 'Run findingbridge config set-token <source>.',
+        suggestion: source.type === 'sarif' ? 'Ensure the SARIF path exists before ingestion.' : 'Run oh-my-triage config set-token <source> (or omt config set-token <source>).',
       }));
       console.log(JSON.stringify({ config: loaded.filepath, checks }, null, 2));
     });

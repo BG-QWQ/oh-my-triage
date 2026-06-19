@@ -6,14 +6,14 @@ type InitOptions = {
   force?: boolean;
 };
 
-/** Create the `init` command for initializing FindingBridge configuration. */
+/** Create the `init` command for initializing oh-my-triage configuration. */
 export function createInitCommand(): Command {
   return new Command('init')
-    .description('Initialize FindingBridge configuration')
+    .description('Initialize oh-my-triage configuration')
     .option('-c, --config <path>', 'Configuration file path')
     .option('--force', 'Overwrite an existing configuration file')
     .action(async (options: InitOptions) => {
       const result = await initializeConfig({ configPath: options.config, force: options.force });
-      console.log(`FindingBridge configuration ready: ${result.filepath}`);
+      console.log(`oh-my-triage configuration ready: ${result.filepath}`);
     });
 }

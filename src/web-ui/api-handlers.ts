@@ -119,7 +119,7 @@ function setCorsHeaders(req: IncomingMessage, res: ServerResponse): void {
 function getServerCommand(): { command: string; args: string[] } {
   return {
     command: process.execPath,
-    args: [process.argv[1] ?? 'findingbridge', 'server'],
+    args: [process.argv[1] ?? 'oh-my-triage', 'server'],
   };
 }
 
@@ -313,7 +313,7 @@ async function handleWriteConfig(req: IncomingMessage, res: ServerResponse): Pro
     const result = await writeMcpClientConfig({
       client,
       command: process.execPath,
-      args: [process.argv[1] ?? 'findingbridge', 'server'],
+      args: [process.argv[1] ?? 'oh-my-triage', 'server'],
     });
 
     sendJson(res, 200, {
@@ -536,7 +536,7 @@ async function resolveTokenRef(params: {
 
   if (tokenStorage === 'env') {
     const tokenRef = credentialStore.envName(source.id);
-    warnings.push(`Set ${tokenRef} before running FindingBridge.`);
+    warnings.push(`Set ${tokenRef} before running oh-my-triage.`);
     return { tokenRef, storage: 'env' };
   }
 
@@ -558,7 +558,7 @@ async function handleStartServer(_req: IncomingMessage, res: ServerResponse): Pr
       command,
       args,
       cwd: process.cwd(),
-      message: `Run ${formatCommand(command, args)} in a terminal, or restart your configured MCP client so it launches FindingBridge over stdio.`,
+      message: `Run ${formatCommand(command, args)} in a terminal, or restart your configured MCP client so it launches oh-my-triage over stdio.`,
     });
   } catch (err) {
     logger.error('Start server command error', { error: String(err) });
@@ -602,7 +602,7 @@ export async function handleApiRequest(req: IncomingMessage, res: ServerResponse
   setCorsHeaders(req, res);
 
   if (!isAllowedOrigin(req)) {
-    sendError(res, 403, 'Cross-origin setup API requests are not allowed. Open the local FindingBridge setup wizard and retry.');
+    sendError(res, 403, 'Cross-origin setup API requests are not allowed. Open the local oh-my-triage setup wizard and retry.');
     return true;
   }
 

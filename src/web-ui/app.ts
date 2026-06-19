@@ -1,5 +1,5 @@
 /**
- * FindingBridge Setup Wizard — client-side application logic.
+ * oh-my-triage Setup Wizard — client-side application logic.
  *
  * Manages the 8-step setup flow: welcome, scanner selection, per-scanner
  * configuration, security settings, MCP config generation, and summary.
@@ -708,7 +708,7 @@ async function handleWriteMcpConfig(writeBtn: HTMLButtonElement, clientList: HTM
 function buildMcpConfig(clientName: string): Record<string, unknown> {
   // Base server config
   const serverConfig = {
-    command: 'findingbridge',
+    command: 'oh-my-triage',
     args: ['server'],
     env: {},
   };
@@ -718,7 +718,7 @@ function buildMcpConfig(clientName: string): Record<string, unknown> {
     case 'vscode': {
       return {
         servers: {
-          findingbridge: {
+          'oh-my-triage': {
             type: 'stdio',
             ...serverConfig,
           },
@@ -728,9 +728,9 @@ function buildMcpConfig(clientName: string): Record<string, unknown> {
     case 'opencode': {
       return {
         mcp: {
-          findingbridge: {
+          'oh-my-triage': {
             type: 'local',
-            command: ['findingbridge', 'server'],
+            command: ['oh-my-triage', 'server'],
             enabled: true,
             environment: {},
           },
@@ -741,7 +741,7 @@ function buildMcpConfig(clientName: string): Record<string, unknown> {
       // Claude Desktop, Cursor, Claude Code, Windsurf, Cline, and others
       return {
         mcpServers: {
-          findingbridge: serverConfig,
+          'oh-my-triage': serverConfig,
         },
       };
     }

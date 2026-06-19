@@ -205,7 +205,7 @@ export async function writeConfig(clientName: string, config: Record<string, unk
 }
 
 /**
- * Persist scanner setup into the FindingBridge configuration file.
+ * Persist scanner setup into the oh-my-triage configuration file.
  *
  * Tokens are sent only to the local setup backend, which stores them through
  * the configured credential backend and writes only token references to config.

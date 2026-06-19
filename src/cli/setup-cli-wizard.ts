@@ -41,7 +41,7 @@ export async function runCliSetupWizard(options?: CliSetupOptions): Promise<Setu
     sources,
   };
   await saveConfig(nextConfig, loaded.config.filepath);
-  const writeMcp = await confirm({ message: 'Merge FindingBridge into detected MCP client configs?', default: true });
+  const writeMcp = await confirm({ message: 'Merge oh-my-triage into detected MCP client configs?', default: true });
   const setupResult = writeMcp ? await runSetupService({ configPath: loaded.config.filepath, writeMcp: true }) : { config: { config: nextConfig, filepath: loaded.config.filepath }, mcpWrites: [] };
   return setupResult;
 }

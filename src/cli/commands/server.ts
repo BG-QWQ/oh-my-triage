@@ -3,7 +3,7 @@ import { loadOrCreateConfig } from '../../config/config.js';
 import type { SourceConfig, TokenStorage } from '../../config/validation.js';
 import { logger } from '../../utils/logger.js';
 import { runDemoMode } from '../demo-mode.js';
-import { startFindingBridgeStdioServer } from '../../mcp-server/stdio.js';
+import { startOMTStdioServer } from '../../mcp-server/stdio.js';
 
 type ServerOptions = {
   demo?: boolean;
@@ -11,10 +11,10 @@ type ServerOptions = {
   config?: string;
 };
 
-/** Create the `server` command for starting FindingBridge MCP over stdio. */
+/** Create the `server` command for starting oh-my-triage MCP over stdio. */
 export function createServerCommand(): Command {
   return new Command('server')
-    .description('Start the FindingBridge MCP server')
+    .description('Start the oh-my-triage MCP server')
     .option('--demo', 'Run in demo mode with sample data')
     .option('--db <path>', 'Path to SQLite database')
     .option('-c, --config <path>', 'Configuration file path')
@@ -25,9 +25,9 @@ export function createServerCommand(): Command {
       }
 
       const loadedConfig = await loadOrCreateConfig(options.config);
-      const dbPath = options.db ?? loadedConfig.config.database_path;
+      const dbPath = options.db ?? process.env.OMT_DB_PATH ?? process.env.FINDINGBRIDGE_DB_PATH ?? loadedConfig.config.database_path;
       if (!dbPath) {
-        throw new Error('Database path is not configured. Run findingbridge init or pass --db.');
+        throw new Error('Database path is not configured. Run oh-my-triage init (or omt init) or pass --db.');
       }
       await startMcpServer(dbPath, loadedConfig.config.sources, loadedConfig.config.token_storage);
     });
@@ -40,6 +40,6 @@ export async function startMcpServer(
   tokenStorage: TokenStorage = 'keychain',
   demoMode = false
 ): Promise<void> {
-  logger.info('Starting FindingBridge MCP server over stdio.', { db_path: dbPath });
-  await startFindingBridgeStdioServer({ dbPath, configuredSources, tokenStorage, demoMode });
+  logger.info('Starting oh-my-triage MCP server over stdio.', { db_path: dbPath });
+  await startOMTStdioServer({ dbPath, configuredSources, tokenStorage, demoMode });
 }

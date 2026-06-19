@@ -23,11 +23,11 @@ vi.mock('@inquirer/prompts', () => ({
 vi.mock('@/config/config.js', () => ({
   loadOrCreateConfig: vi.fn(async () => ({
     config: configState.loadedConfig ?? baseConfig(),
-    filepath: 'findingbridge.config.json',
+    filepath: 'oh-my-triage.config.json',
   })),
   saveConfig: vi.fn(async (config: Config) => {
     configState.savedConfig = config;
-    return 'findingbridge.config.json';
+    return 'oh-my-triage.config.json';
   }),
 }));
 
@@ -43,7 +43,7 @@ vi.mock('@/config/setup-service.js', () => ({
   runSetupService: vi.fn(async () => ({
     config: {
       config: configState.savedConfig ?? baseConfig(),
-      filepath: 'findingbridge.config.json',
+      filepath: 'oh-my-triage.config.json',
     },
     mcpWrites: [],
   })),

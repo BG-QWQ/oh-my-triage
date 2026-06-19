@@ -18,11 +18,11 @@ const credentialState = vi.hoisted(() => ({
 vi.mock('@/config/config.js', () => ({
   loadOrCreateConfig: vi.fn(async () => ({
     config: configState.loadedConfig ?? baseConfig(),
-    filepath: 'findingbridge.config.json',
+    filepath: 'oh-my-triage.config.json',
   })),
   saveConfig: vi.fn(async (config: Config) => {
     configState.savedConfig = config;
-    return 'findingbridge.config.json';
+    return 'oh-my-triage.config.json';
   }),
 }));
 
@@ -30,11 +30,11 @@ vi.mock('@/config/credential-store.js', () => ({
   CredentialStore: class {
     async setToken(sourceId: string, token: string, storage: string): Promise<{ tokenRef: string; storage: 'env' }> {
       credentialState.setTokenCalls.push({ sourceId, token, storage });
-      return { tokenRef: 'FINDINGBRIDGE_TOKEN_GITHUB_CODE_SCANNING', storage: 'env' };
+      return { tokenRef: 'OMT_TOKEN_GITHUB_CODE_SCANNING', storage: 'env' };
     }
 
     envName(sourceId: string): string {
-      return `FINDINGBRIDGE_TOKEN_${sourceId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+      return `OMT_TOKEN_${sourceId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
     }
   },
 }));
@@ -127,12 +127,12 @@ describe('handleApiRequest', () => {
     expect(configState.savedConfig?.sources).toEqual([
       expect.objectContaining({
         id: 'github-code-scanning',
-        token_ref: 'FINDINGBRIDGE_TOKEN_GITHUB_CODE_SCANNING',
+        token_ref: 'OMT_TOKEN_GITHUB_CODE_SCANNING',
         options: { owner: 'acme', repo: 'api' },
       }),
       expect.objectContaining({
         id: 'github-code-scanning-acme-web',
-        token_ref: 'FINDINGBRIDGE_TOKEN_GITHUB_CODE_SCANNING',
+        token_ref: 'OMT_TOKEN_GITHUB_CODE_SCANNING',
         options: { owner: 'acme', repo: 'web' },
       }),
     ]);

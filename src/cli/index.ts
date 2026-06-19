@@ -31,13 +31,13 @@ if (__nodeMajor >= 24 && !__hasSystemCa) {
   });
   child.on('exit', (code) => process.exit(code ?? 0));
   child.on('error', (err) => {
-    console.error('Failed to restart FindingBridge with system CA certificates:', err.message);
+    console.error('Failed to restart oh-my-triage with system CA certificates:', err.message);
     process.exit(1);
   });
 } else {
   const program = new Command()
-    .name('findingbridge')
-    .description('FindingBridge — Connect your scanners. Let AI explain the noise.')
+    .name('oh-my-triage')
+    .description('oh-my-triage (omt) — Connect your scanners. Let AI explain the noise.')
     .version(VERSION, '-v, --version', 'Show version number');
 
   program.addCommand(createInitCommand());

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FindingBridge — Setup Wizard</title>
+  <title>oh-my-triage — Setup Wizard</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
     <!-- ── Sidebar ── -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <h1>FindingBridge</h1>
+        <h1>oh-my-triage</h1>
         <p>Connect your scanners. Let AI explain the noise.</p>
       </div>
 
@@ -58,7 +58,7 @@
       <section class="step-panel active" data-step="welcome">
         <div class="welcome-hero">
           <div class="logo">🌉</div>
-          <h2>Welcome to FindingBridge</h2>
+          <h2>Welcome to oh-my-triage</h2>
           <p>
             Set up your scanner connections, configure security preferences,
             and generate MCP client configuration — all in a few guided steps.
@@ -190,7 +190,7 @@
       <!-- Step 6: Security settings -->
       <section class="step-panel" data-step="security-settings">
         <h2>Security Settings</h2>
-        <p class="step-subtitle">Choose how FindingBridge stores your scanner tokens.</p>
+        <p class="step-subtitle">Choose how oh-my-triage stores your scanner tokens.</p>
 
         <div class="radio-group">
           <label class="radio-option selected">
@@ -205,7 +205,7 @@
             <input type="radio" name="token-storage" value="encrypted-file">
             <div>
               <div class="radio-label">Development File Fallback</div>
-              <div class="radio-desc">Store raw tokens in FindingBridge's local development credential file with restricted file permissions. Raw tokens are never written to the main config, but this is not recommended for production secrets.</div>
+              <div class="radio-desc">Store raw tokens in oh-my-triage's local development credential file with restricted file permissions. Raw tokens are never written to the main config, but this is not recommended for production secrets.</div>
             </div>
           </label>
 
@@ -223,7 +223,7 @@
       <!-- Step 7: MCP config -->
       <section class="step-panel" data-step="mcp-config">
         <h2>MCP Configuration</h2>
-        <p class="step-subtitle">Generate MCP client configuration so your AI tools can connect to FindingBridge.</p>
+        <p class="step-subtitle">Generate MCP client configuration so your AI tools can connect to oh-my-triage.</p>
 
         <div id="mcp-status"></div>
 
