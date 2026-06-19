@@ -21,6 +21,7 @@ import {
   writeConfig,
   saveSetup,
   startServer,
+  getServerCommand,
 } from './setup-api.js';
 
 // ── Wizard state ──────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ interface WizardState {
   configResults: Map<string, WriteConfigResponse>;
   setupStatus: SetupStatus | null;
   setupSaved: boolean;
+  serverCommand: { command: string; args: string[] } | null;
 }
 
 const state: WizardState = {
@@ -82,6 +84,7 @@ const state: WizardState = {
   configResults: new Map(),
   setupStatus: null,
   setupSaved: false,
+  serverCommand: null,
 };
 
 // ── DOM helpers ───────────────────────────────────────────────────────
@@ -613,6 +616,20 @@ function initMcpConfigStep(): void {
 
   showLoading(statusContainer, 'Detecting MCP clients...');
 
+  // Fetch the actual server command in parallel so the preview uses the same
+  // command/args that the backend will write to the MCP client config.
+  getServerCommand()
+    .then((command) => {
+      state.serverCommand = command;
+      const selectedClient = clientList.querySelector<HTMLInputElement>('input[name="mcp-client"]:checked');
+      if (selectedClient) {
+        updateConfigPreview(selectedClient.value);
+      }
+    })
+    .catch((err: unknown) => {
+      console.error('Failed to load server command for preview:', err);
+    });
+
   detectMcpClients()
     .then((detection) => {
       state.mcpClients = detection;
@@ -635,6 +652,12 @@ function initMcpConfigStep(): void {
       removeLoading(statusContainer);
       showStatus(statusContainer, 'error', `Detection failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     });
+
+  // Copy config button
+  const copyBtn = $<HTMLButtonElement>('#copy-config');
+  copyBtn.addEventListener('click', () => {
+    void copyConfigPreview(copyBtn, statusContainer);
+  });
 
   // Write config button
   const writeBtn = $<HTMLButtonElement>('#write-mcp-config');
@@ -704,12 +727,15 @@ async function handleWriteMcpConfig(writeBtn: HTMLButtonElement, clientList: HTM
     }
 }
 
-/** Build MCP server config for a specific client */
+/** Build MCP server config for a specific client. */
 function buildMcpConfig(clientName: string): Record<string, unknown> {
-  // Base server config
+  // Use the actual server command returned by the backend so the preview
+  // matches exactly what will be written to the MCP client config file.
+  const command = state.serverCommand?.command ?? 'oh-my-triage';
+  const args = state.serverCommand?.args ?? ['server'];
   const serverConfig = {
-    command: 'oh-my-triage',
-    args: ['server'],
+    command,
+    args,
     env: {},
   };
 
@@ -730,7 +756,7 @@ function buildMcpConfig(clientName: string): Record<string, unknown> {
         mcp: {
           'oh-my-triage': {
             type: 'local',
-            command: ['oh-my-triage', 'server'],
+            command: [command, ...args],
             enabled: true,
             environment: {},
           },
@@ -748,18 +774,27 @@ function buildMcpConfig(clientName: string): Record<string, unknown> {
   }
 }
 
-/** Update the config preview pane */
+/** Update the config preview pane to match what will be written. */
 function updateConfigPreview(clientName: string): void {
   const configPreview = $<HTMLElement>('#config-preview-content');
   const config = buildMcpConfig(clientName);
+  configPreview.textContent = JSON.stringify(config, null, 2);
+}
 
-  // Add client-specific metadata
-  const fullConfig = {
-    _comment: `Configuration for ${clientName}`,
-    ...config,
-  };
-
-  configPreview.textContent = JSON.stringify(fullConfig, null, 2);
+/** Copy the current config preview text to the clipboard. */
+async function copyConfigPreview(copyBtn: HTMLButtonElement, statusContainer: HTMLElement): Promise<void> {
+  const configPreview = $<HTMLElement>('#config-preview-content');
+  const text = configPreview.textContent ?? '';
+  try {
+    await navigator.clipboard.writeText(text);
+    const originalText = copyBtn.textContent;
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => {
+      copyBtn.textContent = originalText;
+    }, 2000);
+  } catch (err: unknown) {
+    showStatus(statusContainer, 'error', `Copy failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
 }
 
 // ── Step: Summary ────────────────────────────────────────────────────

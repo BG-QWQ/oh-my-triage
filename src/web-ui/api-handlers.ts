@@ -543,6 +543,17 @@ async function resolveTokenRef(params: {
   throw new SetupValidationError(`Token is required for ${source.name ?? source.id}.`);
 }
 
+/** Handle GET /api/setup/server-command */
+async function handleGetServerCommand(_req: IncomingMessage, res: ServerResponse): Promise<void> {
+  try {
+    const { command, args } = getServerCommand();
+    sendJson(res, 200, { command, args });
+  } catch (err) {
+    logger.error('Server command error', { error: String(err) });
+    sendError(res, 500, 'Failed to get server command');
+  }
+}
+
 /** Handle POST /api/setup/start-server */
 async function handleStartServer(_req: IncomingMessage, res: ServerResponse): Promise<void> {
   try {
@@ -579,6 +590,7 @@ const SETUP_API_ROUTES: ApiRoute[] = [
   { path: '/api/setup/status', method: 'GET', handler: handleGetStatus },
   { path: '/api/setup/test-connection', method: 'POST', handler: handleTestConnection },
   { path: '/api/setup/detect-mcp-clients', method: 'POST', handler: handleDetectMcpClients },
+  { path: '/api/setup/server-command', method: 'GET', handler: handleGetServerCommand },
   { path: '/api/setup/write-config', method: 'POST', handler: handleWriteConfig },
   { path: '/api/setup/save', method: 'POST', handler: handleSaveSetup },
   { path: '/api/setup/start-server', method: 'POST', handler: handleStartServer },

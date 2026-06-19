@@ -138,6 +138,12 @@ export interface StartServerResponse {
   message: string;
 }
 
+/** Server command response returned by the setup backend. */
+export interface ServerCommandResponse {
+  command: string;
+  args: string[];
+}
+
 /** Health check response */
 export interface HealthResponse {
   status: 'ok';
@@ -227,6 +233,16 @@ export async function startServer(): Promise<StartServerResponse> {
   return await apiFetch<StartServerResponse>('/api/setup/start-server', {
     method: 'POST',
   });
+}
+
+/**
+ * Get the server command used in generated MCP client configurations.
+ *
+ * Returns the exact command and args the backend writes, so the setup wizard
+ * preview matches the persisted configuration.
+ */
+export async function getServerCommand(): Promise<ServerCommandResponse> {
+  return await apiFetch<ServerCommandResponse>('/api/setup/server-command');
 }
 
 /**

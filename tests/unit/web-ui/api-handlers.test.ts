@@ -169,6 +169,18 @@ describe('handleApiRequest', () => {
     expect(configState.savedConfig?.sources).toHaveLength(2);
     expect(configState.savedConfig?.sources).toEqual(expect.arrayContaining(configState.loadedConfig.sources));
   });
+
+  it('returns the current server command for MCP client previews', async () => {
+    const response = new StubResponse();
+
+    const handled = await handleApiRequest(createRequest('/api/setup/server-command', 'GET'), response as unknown as ServerResponse);
+
+    expect(handled).toBe(true);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.command).toBe(process.execPath);
+    expect(body.args).toEqual([process.argv[1] ?? 'oh-my-triage', 'server']);
+  });
 });
 
 function createRequest(url: string, method: string): IncomingMessage {
