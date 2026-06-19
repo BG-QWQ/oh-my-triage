@@ -1,14 +1,16 @@
 # MCP Tools Reference
 
-All tools use the `findingbridge_` prefix. Read-only tools declare
+All tools use the `omt_` prefix. Read-only tools declare
 `readOnlyHint: true`.
 
-`findingbridge_sync_sources` may call scanner APIs and writes scanner findings
-to FindingBridge's local database only; it never modifies user repositories.
+> **Renamed from FindingBridge.** The legacy `findingbridge_*` MCP tool names are not retained as deprecated aliases. On first run, any legacy `findingbridge` config, `~/.findingbridge/` data, and `FINDINGBRIDGE_*` environment variables are migrated into `oh-my-triage.config.json`, `~/.oh-my-triage/`, and `OMT_TOKEN_*` / `OMT_DB_PATH` automatically. After that one-time migration, the legacy names are not consulted.
+
+`omt_sync_sources` may call scanner APIs and writes scanner findings
+to oh-my-triage's local database only; it never modifies user repositories.
 
 ## Workspace Confirmation Guardrail
 
-FindingBridge MCP tools return findings from the configured local database or
+oh-my-triage MCP tools return findings from the configured local database or
 from scanner sources synchronized into that database. The MCP server cannot
 reliably know the calling agent's current IDE/workspace repository, so agents
 must ask the user to confirm the repository or scanner project under review
@@ -17,10 +19,10 @@ before relying on findings as applicable to that workspace.
 Do not use `file_path`, `rule_id`, or stored scanner project keys as implicit
 current-project selectors. When current/latest platform data is requested,
 confirm the current repository/project with the user, synchronize the matching
-source or sources with `findingbridge_sync_sources`, then read
-`findingbridge_summary` or `findingbridge_list_findings`.
+source or sources with `omt_sync_sources`, then read
+`omt_summary` or `omt_list_findings`.
 
-## findingbridge_list_findings
+## omt_list_findings
 
 List findings with optional filtering and pagination.
 
@@ -52,8 +54,8 @@ By default, stale or out-of-current-scope findings are excluded. Set
   current-project selector.
 - SonarCloud project keys belong in the discovery and synchronization flow. If
   default sync cannot infer a unique exact/normalized current-repository match,
-  call `findingbridge_list_source_projects`, choose the matching project key,
-  then pass it to `findingbridge_sync_sources.project_keys[source_id]`.
+  call `omt_list_source_projects`, choose the matching project key,
+  then pass it to `omt_sync_sources.project_keys[source_id]`.
 - Empty results with filters mean no stored findings matched those filters. For
   current or latest scanner platform results, synchronize first before
   concluding the scanner platform has no findings.
@@ -64,7 +66,7 @@ By default, stale or out-of-current-scope findings are excluded. Set
 {
   "findings": [
     {
-      "id": "fb-001",
+      "id": "omt-001",
       "title": "Potential SQL Injection",
       "severity": "high",
       "tool": "github-code-scanning",
@@ -81,7 +83,7 @@ By default, stale or out-of-current-scope findings are excluded. Set
 }
 ```
 
-## findingbridge_get_finding_detail
+## omt_get_finding_detail
 
 Get detailed information about a single finding.
 
@@ -89,7 +91,7 @@ Get detailed information about a single finding.
 
 ```json
 {
-  "finding_id": "fb-001",
+  "finding_id": "omt-001",
   "include_code_context": true,
   "context_lines": 5,
   "include_stale": false
@@ -103,7 +105,7 @@ Exact-ID finding tools exclude stale findings by default. Set
 
 ```json
 {
-  "id": "fb-001",
+  "id": "omt-001",
   "title": "Potential SQL Injection",
   "severity": "high",
   "tool": "github-code-scanning",
@@ -126,7 +128,7 @@ Exact-ID finding tools exclude stale findings by default. Set
 
 **Security Note**: Code context is limited to max 20 lines and secrets are redacted.
 
-## findingbridge_explain_finding
+## omt_explain_finding
 
 Explain a finding in plain language.
 
@@ -134,7 +136,7 @@ Explain a finding in plain language.
 
 ```json
 {
-  "finding_id": "fb-001",
+  "finding_id": "omt-001",
   "audience": "beginner",
   "language": "zh-CN",
   "include_stale": false
@@ -145,7 +147,7 @@ Explain a finding in plain language.
 
 ```json
 {
-  "finding_id": "fb-001",
+  "finding_id": "omt-001",
   "explanation": "This vulnerability allows attackers to inject malicious SQL...",
   "why_it_matters": "Attackers can steal or modify database data...",
   "is_likely_false_positive": false,
@@ -158,7 +160,7 @@ Explain a finding in plain language.
 }
 ```
 
-## findingbridge_suggest_fix
+## omt_suggest_fix
 
 Get remediation suggestions.
 
@@ -166,7 +168,7 @@ Get remediation suggestions.
 
 ```json
 {
-  "finding_id": "fb-001",
+  "finding_id": "omt-001",
   "approach": "secure"
 }
 ```
@@ -175,7 +177,7 @@ Get remediation suggestions.
 
 ```json
 {
-  "finding_id": "fb-001",
+  "finding_id": "omt-001",
   "suggestions": [
     {
       "type": "secure",
@@ -189,7 +191,7 @@ Get remediation suggestions.
 }
 ```
 
-## findingbridge_prioritize_findings
+## omt_prioritize_findings
 
 Rank findings by business impact.
 
@@ -197,7 +199,7 @@ Rank findings by business impact.
 
 ```json
 {
-  "finding_ids": ["fb-001", "fb-002"],
+  "finding_ids": ["omt-001", "omt-002"],
   "criteria": "combined",
   "context": {
     "is_public_facing": true,
@@ -212,7 +214,7 @@ Rank findings by business impact.
 {
   "prioritized": [
     {
-      "finding_id": "fb-001",
+      "finding_id": "omt-001",
       "rank": 1,
       "score": 95,
       "reasoning": "SQL Injection (CWE-89) in public API with sensitive data"
@@ -222,7 +224,7 @@ Rank findings by business impact.
 }
 ```
 
-## findingbridge_deduplicate_findings
+## omt_deduplicate_findings
 
 Preview duplicate findings (dry-run by default).
 
@@ -248,8 +250,8 @@ Deduplication excludes stale findings by default. Set `scope.include_stale` to
   "groups": [
     {
       "group_id": "dup-001",
-      "representative_id": "fb-001",
-      "findings": ["fb-001", "fb-042"],
+      "representative_id": "omt-001",
+      "findings": ["omt-001", "omt-042"],
       "tools": ["github-code-scanning", "semgrep"],
       "reason": "Same SQL injection at src/db.ts:42",
       "confidence": 0.88
@@ -261,7 +263,7 @@ Deduplication excludes stale findings by default. Set `scope.include_stale` to
 }
 ```
 
-## findingbridge_generate_report
+## omt_generate_report
 
 Generate a security findings report.
 
@@ -296,15 +298,15 @@ only when intentionally reporting on historical findings.
       "medium": 45,
       "low": 68
     },
-    "top_priorities": ["fb-001", "fb-003", "fb-007"]
+    "top_priorities": ["omt-001", "omt-003", "omt-007"]
   }
 }
 ```
 
-## findingbridge_list_source_projects
+## omt_list_source_projects
 
 List scanner projects visible to configured source credentials. Use this before
-`findingbridge_sync_sources` when a source, such as SonarCloud, needs a project
+`omt_sync_sources` when a source, such as SonarCloud, needs a project
 key.
 
 ### Input Schema
@@ -343,7 +345,7 @@ an organization.
         }
       ],
       "next_steps": [
-        "Choose every project key that matches the current repository, then call findingbridge_sync_sources without source_ids and pass project_keys for every matching source that needs a key."
+        "Choose every project key that matches the current repository, then call omt_sync_sources without source_ids and pass project_keys for every matching source that needs a key."
       ]
     }
   ],
@@ -352,11 +354,11 @@ an organization.
 }
 ```
 
-## findingbridge_sync_sources
+## omt_sync_sources
 
-Synchronize configured scanner sources into the local FindingBridge database.
+Synchronize configured scanner sources into the local oh-my-triage database.
 Call this before reading current scanner platform results with
-`findingbridge_summary` or `findingbridge_list_findings`.
+`omt_summary` or `omt_list_findings`.
 
 ### Input Schema
 
@@ -372,7 +374,7 @@ Call this before reading current scanner platform results with
 ```
 
 When synchronizing all scanner data for the confirmed current workspace
-repository, omit `source_ids`. Omitted `source_ids` tells FindingBridge to sync
+repository, omit `source_ids`. Omitted `source_ids` tells oh-my-triage to sync
 all inferred current-project sources: GitHub sources whose configured
 owner/repository matches the local `origin` remote, plus SonarCloud sources with
 a saved `project_key`, a per-call `project_keys[source_id]` override, or a
@@ -390,10 +392,10 @@ projects in the configured organization and auto-selects only one unique
 exact/normalized match, such as `owner_repo`, `owner-repo`, or a project name
 equal to the repository name. Ambiguous matches, missing matches, missing
 organization/token, truncated project discovery, or discovery failures are
-returned as skipped source results with next steps; FindingBridge does not fuzzy
+returned as skipped source results with next steps; oh-my-triage does not fuzzy
 auto-sync those projects. In those cases, rerun with a higher `max_pages` value
-or call `findingbridge_list_source_projects`, have the user confirm every
-matching key, then rerun `findingbridge_sync_sources` without `source_ids` and
+or call `omt_list_source_projects`, have the user confirm every
+matching key, then rerun `omt_sync_sources` without `source_ids` and
 pass a complete `project_keys` map for each source that needs a key. Inferred and
 per-call project keys are not persisted.
 
@@ -428,8 +430,8 @@ All tools return structured errors:
     "code": "MCP_INVALID_INPUT",
     "message": "Invalid finding_id format",
     "next_steps": [
-      "Use a valid finding ID (e.g., fb-001)",
-      "Run findingbridge_list_findings to see available IDs"
+      "Use a valid finding ID (e.g., omt-001)",
+      "Run omt_list_findings to see available IDs"
     ],
     "retryable": false
   }
@@ -442,14 +444,14 @@ Read-only tools declare:
 - `readOnlyHint: true` — The tool does not modify data
 - `destructiveHint: false` — The tool performs no destructive operations
 
-`findingbridge_sync_sources` declares `readOnlyHint: false` because it writes
-scanner findings to FindingBridge's local database, while still declaring
+`omt_sync_sources` declares `readOnlyHint: false` because it writes
+scanner findings to oh-my-triage's local database, while still declaring
 `destructiveHint: false` because it does not modify user repositories or delete
 scanner data.
 
 ## Pagination
 
-`findingbridge_list_findings` supports:
+`omt_list_findings` supports:
 - `limit`: Max results per page (default 50, max 200)
 - `offset`: Skip N results
 - `has_more`: Boolean indicating more results available

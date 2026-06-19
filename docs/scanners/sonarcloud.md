@@ -6,25 +6,25 @@
 
 1. Go to https://sonarcloud.io/account/security/
 2. Click "Generate" under User Tokens
-3. Name the token (e.g., "FindingBridge")
+3. Name the token (e.g., "oh-my-triage")
 4. Copy the token
 
-### 2. Configure FindingBridge
+### 2. Configure oh-my-triage
 
 ```bash
-findingbridge setup
+omt setup
 # Select "SonarCloud", paste token, and enter the SonarCloud organization key
 ```
 
 Or set directly:
 
 ```bash
-findingbridge config set-token sonarcloud
+omt config set-token sonarcloud
 ```
 
 ## Token Validation
 
-FindingBridge validates your token by:
+oh-my-triage validates your token by:
 1. Calling `/api/authentication/validate`
 2. Listing organization projects via `/api/components/search?organization=<org>&qualifiers=TRK`
 3. Testing issue access via `/api/issues/search`
@@ -49,13 +49,13 @@ exactly one safe match for the current GitHub owner/repository. Safe automatic
 matches are exact or normalized forms such as `owner_repo`, `owner-repo`, or a
 SonarCloud project name equal to the repository name.
 
-FindingBridge does not fuzzy auto-sync ambiguous SonarCloud projects. If a source
+oh-my-triage does not fuzzy auto-sync ambiguous SonarCloud projects. If a source
 has no saved `project_key` and discovery finds no match, multiple matches, no
 organization/token, truncated project discovery, or a permissions error, default
 sync returns a skipped result with next steps and still synchronizes other
 inferable sources. Rerun with a higher `max_pages` value or use
-`findingbridge_list_source_projects` to inspect candidates, have the user confirm
-the matching key, then rerun `findingbridge_sync_sources` without `source_ids`
+`omt_list_source_projects` to inspect candidates, have the user confirm
+the matching key, then rerun `omt_sync_sources` without `source_ids`
 and pass `project_keys[source_id]`. Inferred and per-call project keys are not
 persisted.
 
@@ -87,7 +87,7 @@ persisted.
 | Error | Solution |
 |-------|----------|
 | Invalid token | Generate new token in SonarCloud settings |
-| Missing organization | Enter the SonarCloud organization key in setup, or pass `organizations[source_id]` to `findingbridge_list_source_projects` |
+| Missing organization | Enter the SonarCloud organization key in setup, or pass `organizations[source_id]` to `omt_list_source_projects` |
 | No projects found | Check token belongs to the selected organization and has Browse permission |
 | Insufficient permissions | Use User Token (not Project Token) |
 

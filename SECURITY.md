@@ -8,7 +8,7 @@
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability in FindingBridge:
+If you discover a security vulnerability in oh-my-triage:
 
 1. **Do not** open a public issue
 2. Email: bg-qwq@qq.com

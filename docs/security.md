@@ -2,11 +2,11 @@
 
 ## Data Minimization
 
-FindingBridge follows the principle of collecting only what's necessary:
+oh-my-triage follows the principle of collecting only what's necessary:
 
 - **No full source upload**: Only finding metadata and up to 20 lines of code context
 - **No repository access**: Read-only tools, no write operations
-- **Local-first**: SQLite database stored in `~/.findingbridge/`
+- **Local-first**: SQLite database stored in `~/.oh-my-triage/`
 
 ## Secret Handling
 
@@ -54,7 +54,7 @@ All external inputs are validated with Zod:
 
 ## LLM Safety
 
-The MCP skill file instructs LLM agents to:
+The MCP skill file (`src/skills/oh-my-triage-skill.md`) instructs LLM agents to:
 - Never send full source files to external services
 - Never repeat API tokens in responses
 - Never auto-apply fixes without human review
@@ -62,15 +62,15 @@ The MCP skill file instructs LLM agents to:
 
 ## Reporting Security Issues
 
-If you discover a security vulnerability in FindingBridge:
+If you discover a security vulnerability in oh-my-triage:
 
 1. Do not open a public issue
-2. Email security@findingbridge.dev (placeholder)
+2. Email security@oh-my-triage.dev (placeholder)
 3. Include reproduction steps and impact assessment
 4. Allow 30 days for remediation before public disclosure
 
 ## Compliance Notes
 
-- **Not a scanner**: FindingBridge does not perform SAST/SCA scanning
+- **Not a scanner**: oh-my-triage does not perform SAST/SCA scanning
 - **Not a code reviewer**: It only processes existing scanner output
 - **No compliance reports**: SOC2/ISO27001 reporting is not implemented

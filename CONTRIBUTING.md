@@ -1,12 +1,14 @@
-# Contributing to FindingBridge
+# Contributing to oh-my-triage
 
 Thank you for your interest in contributing!
+
+> **Renamed from FindingBridge.** All references to the old product, CLI (`findingbridge`), and MCP tool prefix (`findingbridge_*`) have been replaced with `oh-my-triage` / `omt` / `omt_*`. Legacy config and env data is auto-migrated on first run; the legacy CLI and MCP tool names are not retained as deprecated aliases.
 
 ## Development Setup
 
 ```bash
-git clone https://github.com/BG-QWQ/findingbridge.git
-cd findingbridge
+git clone https://github.com/BG-QWQ/oh-my-triage.git
+cd oh-my-triage
 npm install
 ```
 

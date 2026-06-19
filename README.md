@@ -1,13 +1,17 @@
-# FindingBridge 🌉
+# oh-my-triage 🩺
 
 > Connect your scanners. Let AI explain the noise.
 
-[![npm version](https://img.shields.io/npm/v/findingbridge)](https://www.npmjs.com/package/findingbridge)
+[![npm version](https://img.shields.io/npm/v/oh-my-triage)](https://www.npmjs.com/package/oh-my-triage)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=BG-QWQ_FindingBridge&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BG-QWQ_FindingBridge)
-## 🤔 Why FindingBridge?
+<!-- TODO: SonarCloud project key not yet migrated. Re-point this badge and link to the new oh-my-triage project once the project is created in SonarCloud. -->
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=BG-QWQ_oh-my-triage&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BG-QWQ_oh-my-triage)
 
-As a developer, you’ve probably been overwhelmed by security scanner alerts. SonarCloud, GitHub Code Scanning, Semgrep, Trivy — each has its own interface, severity levels, and jargon. FindingBridge connects these scanners and exposes their findings through **MCP (Model Context Protocol)** tools, so your AI assistant can help you understand, prioritize, and fix them.
+> **Renamed from FindingBridge.** The `findingbridge` CLI binary and `findingbridge_*` MCP tools are gone, no deprecated aliases. On first run, oh-my-triage automatically migrates any legacy `findingbridge.config.json`, `~/.findingbridge/` data, and `FINDINGBRIDGE_*` environment variables into the new `oh-my-triage.config.json`, `~/.oh-my-triage/`, and `OMT_*` names. After that one-time migration, the legacy names are not consulted again.
+
+## 🤔 Why oh-my-triage?
+
+As a developer, you've probably been overwhelmed by security scanner alerts. SonarCloud, GitHub Code Scanning, Semgrep, Trivy — each has its own interface, severity levels, and jargon. oh-my-triage connects these scanners and exposes their findings through **MCP (Model Context Protocol)** tools, so your AI assistant can help you understand, prioritize, and fix them.
 
 **Key principles:**
 - **Scanner-agnostic**: Not locked to any single scanner
@@ -19,22 +23,22 @@ As a developer, you’ve probably been overwhelmed by security scanner alerts. S
 
 ### Method 1: Download & Run (Recommended for beginners)
 
-1. Download the release for your platform from [Releases](https://github.com/BG-QWQ/findingbridge/releases)
-2. Extract and run `findingbridge` (or `findingbridge.exe` on Windows)
+1. Download the release for your platform from [Releases](https://github.com/BG-QWQ/oh-my-triage/releases)
+2. Extract and run `omt` (or `omt.exe` on Windows)
 3. Follow the web setup wizard at `http://localhost:3456/setup`
 4. Ask Claude: *"What are my most critical security findings?"*
 
 ### Method 2: npm (For developers)
 
 ```bash
-npx findingbridge@latest server
+npx oh-my-triage@latest server
 # First run automatically opens the setup wizard
 ```
 
 ### Method 3: Zero-Config Demo
 
 ```bash
-npx findingbridge@latest server --demo
+npx oh-my-triage@latest server --demo
 # Pre-loaded sample findings for instant exploration
 ```
 
@@ -51,30 +55,30 @@ npx findingbridge@latest server --demo
 
 ## 🛠️ MCP Tools
 
-All tools use the `findingbridge_` prefix:
+All tools use the `omt_` prefix:
 
 | Tool | Description | Read-Only |
 |------|-------------|-----------|
-| `findingbridge_list_findings` | List findings with filters and pagination | ✅ |
-| `findingbridge_get_finding_detail` | Get full finding details + code context | ✅ |
-| `findingbridge_explain_finding` | Explain a finding in plain language | ✅ |
-| `findingbridge_suggest_fix` | Get remediation suggestions | ✅ |
-| `findingbridge_prioritize_findings` | Rank findings by business impact | ✅ |
-| `findingbridge_deduplicate_findings` | Preview duplicate findings | ✅ |
-| `findingbridge_generate_report` | Generate Markdown/HTML report | ✅ |
+| `omt_list_findings` | List findings with filters and pagination | ✅ |
+| `omt_get_finding_detail` | Get full finding details + code context | ✅ |
+| `omt_explain_finding` | Explain a finding in plain language | ✅ |
+| `omt_suggest_fix` | Get remediation suggestions | ✅ |
+| `omt_prioritize_findings` | Rank findings by business impact | ✅ |
+| `omt_deduplicate_findings` | Preview duplicate findings | ✅ |
+| `omt_generate_report` | Generate Markdown/HTML report | ✅ |
 
 ## 🖥️ CLI Commands
 
 ```bash
-findingbridge init              # Initialize configuration
-findingbridge setup             # Run guided setup wizard
-findingbridge setup --cli       # CLI fallback (no browser)
-findingbridge ingest --sarif <path>   # Import SARIF file
-findingbridge server            # Start MCP server
-findingbridge server --demo     # Start with demo data
-findingbridge config show       # Show current config
-findingbridge config test       # Test scanner connections
-findingbridge diagnose          # Generate diagnostic report
+omt init              # Initialize configuration
+omt setup             # Run guided setup wizard
+omt setup --cli       # CLI fallback (no browser)
+omt ingest --sarif <path>   # Import SARIF file
+omt server            # Start MCP server
+omt server --demo     # Start with demo data
+omt config show       # Show current config
+omt config test       # Test scanner connections
+omt diagnose          # Generate diagnostic report
 ```
 
 ## 🏗️ Architecture
@@ -85,9 +89,9 @@ findingbridge diagnose          # Generate diagnostic report
 └─────────────────┬───────────────────────┘
                   │ MCP Protocol (stdio)
 ┌─────────────────▼───────────────────────┐
-│  FindingBridge MCP Server               │
+│  oh-my-triage MCP Server                │
 │  - 7 read-only tools                    │
-│  - Structured JSON outputs            │
+│  - Structured JSON outputs              │
 └─────────────────┬───────────────────────┘
                   │
 ┌─────────────────▼───────────────────────┐
@@ -112,7 +116,7 @@ findingbridge diagnose          # Generate diagnostic report
 
 ## 🔒 Privacy & Security
 
-- **Data stays local**: SQLite database in `~/.findingbridge/`
+- **Data stays local**: SQLite database in `~/.oh-my-triage/`
 - **Token storage**: System keychain (keytar) with env fallback
 - **No source upload**: Only finding metadata + 20-line code snippets
 - **Secret redaction**: Automatic redaction in logs and responses

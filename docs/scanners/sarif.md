@@ -2,7 +2,7 @@
 
 ## Overview
 
-SARIF (Static Analysis Results Interchange Format) is the primary input format for FindingBridge. Any scanner that produces SARIF 2.1.0 output can be ingested.
+SARIF (Static Analysis Results Interchange Format) is the primary input format for oh-my-triage. Any scanner that produces SARIF 2.1.0 output can be ingested.
 
 ## Supported Scanners
 
@@ -20,13 +20,13 @@ SARIF (Static Analysis Results Interchange Format) is the primary input format f
 ### CLI
 
 ```bash
-findingbridge ingest --sarif path/to/results.sarif
+omt ingest --sarif path/to/results.sarif
 ```
 
 ### Programmatic
 
 ```typescript
-import { SarifAdapter } from 'findingbridge/adapters';
+import { SarifAdapter } from 'oh-my-triage/adapters';
 
 const adapter = new SarifAdapter();
 const result = await adapter.fetchFindings({ filePath: 'results.sarif' });

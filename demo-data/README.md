@@ -1,6 +1,6 @@
 # Demo Data
 
-This directory contains sample SARIF data for the `--demo` mode.
+This directory contains sample SARIF data for the `omt server --demo` mode (the legacy `oh-my-triage server --demo` command is not retained).
 
 ## sample-findings.sarif
 
@@ -15,7 +15,7 @@ This file is safe to distribute and contains no real vulnerabilities or secrets.
 ## Usage
 
 ```bash
-findingbridge server --demo
+omt server --demo
 ```
 
 This will load the demo data into a temporary database and start the MCP server,

@@ -11,10 +11,10 @@
    - `security_events`
 4. Generate and copy token
 
-### 2. Configure FindingBridge
+### 2. Configure oh-my-triage
 
 ```bash
-findingbridge setup
+omt setup
 # Select "GitHub Code Scanning", paste token, test the connection,
 # then choose one or more repositories from the discovered list.
 ```
@@ -22,31 +22,31 @@ findingbridge setup
 For headless systems, the CLI fallback prompts for the same repository coordinates:
 
 ```bash
-findingbridge setup --cli
+omt setup --cli
 # Enter the GitHub token, repository owner or organization, and repository names.
 # Separate multiple repositories with commas; use owner/repo to mix owners.
 ```
 
-When multiple repositories are selected, FindingBridge writes one GitHub source per repository and reuses the same token reference for all of them. This keeps sync isolation repository-scoped while avoiding raw token duplication in the configuration file.
+When multiple repositories are selected, oh-my-triage writes one GitHub source per repository and reuses the same token reference for all of them. This keeps sync isolation repository-scoped while avoiding raw token duplication in the configuration file.
 
 By default, synchronization includes configured GitHub sources whose owner and
 repository match the current repository's `origin` remote. Other inferable
 current-project scanner sources, such as SonarCloud sources with a saved key,
 per-call project key, or one unique exact/normalized SonarCloud project match,
 may sync in the same run. Ambiguous SonarCloud matches are skipped with guidance
-rather than fuzzy auto-synced. Use `findingbridge sync --all` or pass
-`all_sources: true` to `findingbridge_sync_sources` when you explicitly want to
+rather than fuzzy auto-synced. Use `omt sync --all` or pass
+`all_sources: true` to `omt_sync_sources` when you explicitly want to
 synchronize every selected repository or source.
 
 Or set directly:
 
 ```bash
-findingbridge config set-token github
+omt config set-token github
 ```
 
 ## Token Permissions
 
-FindingBridge validates your token has required permissions:
+oh-my-triage validates your token has required permissions:
 
 | Check | Required Scope |
 |-------|--------------|

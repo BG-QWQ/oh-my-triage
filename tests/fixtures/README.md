@@ -1,6 +1,6 @@
 # Test Fixtures
 
-This directory contains synthetic test data for FindingBridge adapters and tools.
+This directory contains synthetic test data for oh-my-triage adapters and tools.
 
 ## Safety Rules
 

@@ -1,8 +1,8 @@
-# FindingBridge Architecture
+# oh-my-triage Architecture
 
 ## Overview
 
-FindingBridge is a TypeScript/Node.js application that bridges security scanners and LLM agents through the Model Context Protocol (MCP).
+oh-my-triage is a TypeScript/Node.js application that bridges security scanners and LLM agents through the Model Context Protocol (MCP). The product, CLI binary (`omt`), and MCP tool prefix (`omt_*`) all use the new name. On first run, any legacy `oh-my-triage` config, `~/.oh-my-triage/` data, and `oh-my-triage_*` environment variables are migrated into `oh-my-triage.config.json`, `~/.oh-my-triage/`, and `OMT_TOKEN_*` / `OMT_DB_PATH` automatically.
 
 ## Core Components
 
@@ -10,7 +10,7 @@ FindingBridge is a TypeScript/Node.js application that bridges security scanners
 
 - **Transport**: stdio (default) for direct MCP client communication
 - **Server**: `McpServer` from `@modelcontextprotocol/sdk`
-- **Tools**: 7 read-only tools with `findingbridge_` prefix
+- **Tools**: 7 read-only tools with `omt_` prefix
 - **Prompts**: Triage workflow guidance for LLM agents
 
 ### 2. Core Engine (`src/core/`)
@@ -64,20 +64,21 @@ interface BaseAdapter {
 
 ### 5. CLI Layer (`src/cli/`)
 
-Commands:
-- `init`: Initialize configuration
-- `ingest`: Import SARIF files
-- `server`: Start MCP server
-- `setup`: Guided configuration wizard
-- `config`: Configuration management
-- `diagnose`: Diagnostic reporting
+Commands (invoked as `omt <command>`):
+- `omt init`: Initialize configuration
+- `omt ingest`: Import SARIF files
+- `omt server`: Start MCP server
+- `omt setup`: Guided configuration wizard
+- `omt config`: Configuration management
+- `omt diagnose`: Diagnostic reporting
 
 ### 6. Config Layer (`src/config/`)
 
 - **Validation**: Zod schemas for all config inputs
-- **Storage**: cosmiconfig for discovery, keytar/env for credentials
+- **Storage**: cosmiconfig for discovery of `oh-my-triage.config.json`, keytar/env for credentials
 - **MCP Client Detection**: Auto-detect Claude Desktop, Cursor, VS Code
 - **Config Writer**: Merge with backup, preserve existing servers
+- **Legacy Migration**: On first run, copy `oh-my-triage.config.json`, `~/.oh-my-triage/` data, and `oh-my-triage_*` env vars into the canonical oh-my-triage locations; after migration the legacy names are not consulted.
 
 ### 7. Web UI (`src/web-ui/`)
 
