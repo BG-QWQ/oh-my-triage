@@ -1,6 +1,6 @@
 # Demo Data
 
-This directory contains sample SARIF data for the `oh-my-triage server --demo` mode (the legacy `oh-my-triage server --demo` command is not retained).
+This directory contains sample SARIF data for the `oh-my-triage server --demo` mode (the legacy `omt server --demo` command is not retained).
 
 ## sample-findings.sarif
 

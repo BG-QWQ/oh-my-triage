@@ -2,7 +2,7 @@
 
 ## Overview
 
-oh-my-triage is a TypeScript/Node.js application that bridges security scanners and LLM agents through the Model Context Protocol (MCP). The product, CLI binary (`oh-my-triage`), and MCP tool prefix (`omt_*`) all use the new name. On first run, any legacy `oh-my-triage` config, `~/.oh-my-triage/` data, and `oh-my-triage_*` environment variables are migrated into `oh-my-triage.config.json`, `~/.oh-my-triage/`, and `OMT_TOKEN_*` / `OMT_DB_PATH` automatically.
+oh-my-triage is a TypeScript/Node.js application that bridges security scanners and LLM agents through the Model Context Protocol (MCP). The product, CLI binary (`oh-my-triage`), and MCP tool prefix (`omt_*`) all use the new name. On first run, any legacy `findingbridge` config, `~/.findingbridge/` data, and `FINDINGBRIDGE_*` environment variables are migrated into `oh-my-triage.config.json`, `~/.oh-my-triage/`, and `OMT_TOKEN_*` / `OMT_DB_PATH` automatically.
 
 ## Core Components
 
@@ -78,7 +78,7 @@ Commands (invoked as `oh-my-triage <command>`):
 - **Storage**: cosmiconfig for discovery of `oh-my-triage.config.json`, keytar/env for credentials
 - **MCP Client Detection**: Auto-detect Claude Desktop, Cursor, VS Code
 - **Config Writer**: Merge with backup, preserve existing servers
-- **Legacy Migration**: On first run, copy `oh-my-triage.config.json`, `~/.oh-my-triage/` data, and `oh-my-triage_*` env vars into the canonical oh-my-triage locations; after migration the legacy names are not consulted.
+- **Legacy Migration**: On first run, copy `findingbridge.config.json`, `~/.findingbridge/` data, and `FINDINGBRIDGE_*` env vars into the canonical oh-my-triage locations; after migration the legacy names are not consulted.
 
 ### 7. Web UI (`src/web-ui/`)
 
