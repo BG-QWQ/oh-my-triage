@@ -6,9 +6,9 @@
 
 Download the latest release for your platform:
 
-- **Windows**: `omt-v0.1.0-win-x64.exe`
-- **macOS**: `omt-v0.1.0-macos-arm64` (Apple Silicon) or `-x64` (Intel)
-- **Linux**: `omt-v0.1.0-linux-x64`
+- **Windows**: `oh-my-triage-v0.1.0-win-x64.exe`
+- **macOS**: `oh-my-triage-v0.1.0-macos-arm64` (Apple Silicon) or `-x64` (Intel)
+- **Linux**: `oh-my-triage-v0.1.0-linux-x64`
 
 No Node.js installation required.
 
@@ -17,7 +17,7 @@ No Node.js installation required.
 Double-click the executable (or run in terminal). The setup wizard will automatically open in your browser:
 
 ```bash
-./omt
+./oh-my-triage
 # → Opens http://localhost:3456/setup
 ```
 
@@ -71,7 +71,7 @@ Ask your AI assistant:
 To try without any configuration:
 
 ```bash
-./omt server --demo
+./oh-my-triage server --demo
 ```
 
 This loads sample findings and starts the MCP server immediately.
@@ -80,7 +80,7 @@ This loads sample findings and starts the MCP server immediately.
 
 | Problem | Solution |
 |---------|----------|
-| Browser doesn't open | Run `omt setup --cli` |
+| Browser doesn't open | Run `oh-my-triage setup --cli` |
 | Token rejected | Check scopes and regenerate token |
 | No findings imported | Check SARIF format (must be 2.1.0) |
 | Claude can't see tools | Restart Claude Desktop after config |

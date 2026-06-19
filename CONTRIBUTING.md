@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing!
 
-> **Renamed from FindingBridge.** All references to the old product, CLI (`findingbridge`), and MCP tool prefix (`findingbridge_*`) have been replaced with `oh-my-triage` / `omt` / `omt_*`. Legacy config and env data is auto-migrated on first run; the legacy CLI and MCP tool names are not retained as deprecated aliases.
+> **Renamed from FindingBridge.** All references to the old product, CLI (`findingbridge`), and MCP tool prefix (`findingbridge_*`) have been replaced with `oh-my-triage` / `omt_*`. Legacy config and env data is auto-migrated on first run; the legacy CLI and MCP tool names are not retained as deprecated aliases.
 
 ## Development Setup
 

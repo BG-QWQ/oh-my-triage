@@ -6,8 +6,7 @@
   "license": "Apache-2.0",
   "main": "dist/cli/index.js",
   "bin": {
-    "oh-my-triage": "dist/cli/index.js",
-    "omt": "dist/cli/index.js"
+    "oh-my-triage": "dist/cli/index.js"
   },
   "files": [
     "dist",

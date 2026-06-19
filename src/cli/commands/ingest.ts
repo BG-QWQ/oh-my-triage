@@ -26,7 +26,7 @@ export function createIngestCommand(): Command {
         throw new OMTError({
           code: ErrorCodes.SARIF_FILE_NOT_FOUND,
           message: 'A SARIF file path is required.',
-          nextSteps: ['Run `oh-my-triage ingest --sarif path/to/results.sarif` (or `omt ingest --sarif path/to/results.sarif`).'],
+          nextSteps: ['Run `oh-my-triage ingest --sarif path/to/results.sarif`.'],
         });
       }
 
@@ -36,7 +36,7 @@ export function createIngestCommand(): Command {
         throw new OMTError({
           code: ErrorCodes.DB_CONNECTION_FAILED,
           message: 'Database path is not configured.',
-          nextSteps: ['Run `oh-my-triage init` (or `omt init`) or pass `--db path/to/oh-my-triage.db`.'],
+          nextSteps: ['Run `oh-my-triage init` or pass `--db path/to/oh-my-triage.db`.'],
         });
       }
 

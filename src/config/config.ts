@@ -73,7 +73,7 @@ export async function loadConfig(configPath?: string): Promise<LoadedConfig> {
       throw new OMTError({
         code: ErrorCodes.CONFIG_NOT_FOUND,
         message: 'oh-my-triage configuration was not found.',
-        nextSteps: ['Run `oh-my-triage init` or `omt init` to create a configuration file.'],
+        nextSteps: ['Run `oh-my-triage init` to create a configuration file.'],
       });
     }
     throw error;
@@ -90,7 +90,7 @@ export async function loadConfig(configPath?: string): Promise<LoadedConfig> {
     throw new OMTError({
       code: ErrorCodes.CONFIG_NOT_FOUND,
       message: 'oh-my-triage configuration was not found.',
-      nextSteps: ['Run `oh-my-triage init` or `omt init` to create a configuration file.'],
+      nextSteps: ['Run `oh-my-triage init` to create a configuration file.'],
     });
   }
 

@@ -14,7 +14,7 @@
 ### 2. Configure oh-my-triage
 
 ```bash
-omt setup
+oh-my-triage setup
 # Select "GitHub Code Scanning", paste token, test the connection,
 # then choose one or more repositories from the discovered list.
 ```
@@ -22,7 +22,7 @@ omt setup
 For headless systems, the CLI fallback prompts for the same repository coordinates:
 
 ```bash
-omt setup --cli
+oh-my-triage setup --cli
 # Enter the GitHub token, repository owner or organization, and repository names.
 # Separate multiple repositories with commas; use owner/repo to mix owners.
 ```
@@ -34,14 +34,14 @@ repository match the current repository's `origin` remote. Other inferable
 current-project scanner sources, such as SonarCloud sources with a saved key,
 per-call project key, or one unique exact/normalized SonarCloud project match,
 may sync in the same run. Ambiguous SonarCloud matches are skipped with guidance
-rather than fuzzy auto-synced. Use `omt sync --all` or pass
+rather than fuzzy auto-synced. Use `oh-my-triage sync --all` or pass
 `all_sources: true` to `omt_sync_sources` when you explicitly want to
 synchronize every selected repository or source.
 
 Or set directly:
 
 ```bash
-omt config set-token github
+oh-my-triage config set-token github
 ```
 
 ## Token Permissions

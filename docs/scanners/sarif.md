@@ -20,7 +20,7 @@ SARIF (Static Analysis Results Interchange Format) is the primary input format f
 ### CLI
 
 ```bash
-omt ingest --sarif path/to/results.sarif
+oh-my-triage ingest --sarif path/to/results.sarif
 ```
 
 ### Programmatic

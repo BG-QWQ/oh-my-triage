@@ -12,14 +12,14 @@
 ### 2. Configure oh-my-triage
 
 ```bash
-omt setup
+oh-my-triage setup
 # Select "SonarCloud", paste token, and enter the SonarCloud organization key
 ```
 
 Or set directly:
 
 ```bash
-omt config set-token sonarcloud
+oh-my-triage config set-token sonarcloud
 ```
 
 ## Token Validation

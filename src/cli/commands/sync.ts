@@ -28,7 +28,7 @@ export function createSyncCommand(): Command {
         throw new OMTError({
           code: ErrorCodes.DB_CONNECTION_FAILED,
           message: 'Database path is not configured.',
-          nextSteps: ['Run `oh-my-triage init` (or `omt init`) or pass `--db path/to/oh-my-triage.db`.'],
+          nextSteps: ['Run `oh-my-triage init` or pass `--db path/to/oh-my-triage.db`.'],
         });
       }
 

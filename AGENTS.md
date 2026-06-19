@@ -48,7 +48,7 @@ Fixes #58 (private)
 
 **Mission**: oh-my-triage is an open-source, self-hosted, privacy-first MCP-based triage layer for existing code/security scanner findings.
 
-> **Renamed from FindingBridge.** The product, CLI binary (`oh-my-triage`/`omt`), MCP tool prefix (`omt_*`), config file (`oh-my-triage.config.json`), per-user data directory (`~/.oh-my-triage/`), and environment variables (`OMT_TOKEN_*`, `OMT_DB_PATH`) all use the new name. The legacy `findingbridge` CLI and `findingbridge_*` MCP tools are not retained as deprecated aliases. On first run, the legacy config file, `~/.findingbridge/` data, and `FINDINGBRIDGE_*` env vars are migrated into the new names automatically; after that one-time migration the legacy names are not consulted.
+> **Renamed from FindingBridge.** The product, CLI binary (`oh-my-triage`), MCP tool prefix (`omt_*`), config file (`oh-my-triage.config.json`), per-user data directory (`~/.oh-my-triage/`), and environment variables (`OMT_TOKEN_*`, `OMT_DB_PATH`) all use the new name. The legacy `findingbridge` CLI and `findingbridge_*` MCP tools are not retained as deprecated aliases. On first run, the legacy config file, `~/.findingbridge/` data, and `FINDINGBRIDGE_*` env vars are migrated into the new names automatically; after that one-time migration the legacy names are not consulted.
 
 **It does:**
 - Ingest scanner results from multiple sources (SARIF, GitHub Code Scanning, SonarCloud, Socket.dev, etc.)
@@ -72,7 +72,7 @@ Fixes #58 (private)
 - Tool outputs must be structured JSON whenever possible; avoid raw Markdown in tool returns.
 - Tools that only read data must declare read-only semantics (e.g., `readOnlyHint: true`).
 - MVP tools must not modify user repositories, open PRs, or apply patches.
-- Error messages must be actionable and include next steps (e.g., "Token invalid. Run `omt config set-token github` to update.").
+- Error messages must be actionable and include next steps (e.g., "Token invalid. Run `oh-my-triage config set-token github` to update.").
 - Tools must support pagination for large finding sets.
 - Never return full source files; only minimal code context around a finding.
 - The agent skill file is `src/skills/oh-my-triage-skill.md` (formerly `src/skills/findingbridge-skill.md`).
@@ -95,11 +95,11 @@ Fixes #58 (private)
 ## Beginner UX Rules
 
 - Releases must be usable without installing Node.js. Prefer a single-file executable, but platform-specific zip/app bundles are acceptable if native dependencies require it.
-- The primary beginner flow is: download release → run executable (`omt`) → **local Web Setup Wizard opens in browser** → guided configuration → generate MCP config.
-- CLI terminal wizard (`omt setup --cli`) must be available as fallback for headless environments.
+- The primary beginner flow is: download release → run executable (`oh-my-triage`) → **local Web Setup Wizard opens in browser** → guided configuration → generate MCP config.
+- CLI terminal wizard (`oh-my-triage setup --cli`) must be available as fallback for headless environments.
 - Do not require beginners to hand-write YAML, JSON, or command-line flags for the first successful setup.
 - If configuration fails, show a clear reason, suggested fix, and retry option.
-- Demo mode (`omt server --demo`) is optional and must not replace the real guided setup flow.
+- Demo mode (`oh-my-triage server --demo`) is optional and must not replace the real guided setup flow.
 - MCP config must be merged into existing client configs without overwriting other servers.
 - Back up existing MCP config files before writing.
 

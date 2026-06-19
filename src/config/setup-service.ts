@@ -62,7 +62,7 @@ export async function startWebSetup(params?: { host?: string; port?: number; con
     throw new OMTError({
       code: ErrorCodes.SETUP_BROWSER_FAILED,
       message: 'Unable to open the setup wizard in a browser.',
-      nextSteps: [`Open ${setupUrl} manually or run oh-my-triage setup --cli (or omt setup --cli).`],
+      nextSteps: [`Open ${setupUrl} manually or run oh-my-triage setup --cli.`],
       details: { error: String(error) },
     });
   }

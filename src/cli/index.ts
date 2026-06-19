@@ -37,7 +37,7 @@ if (__nodeMajor >= 24 && !__hasSystemCa) {
 } else {
   const program = new Command()
     .name('oh-my-triage')
-    .description('oh-my-triage (omt) — Connect your scanners. Let AI explain the noise.')
+    .description('oh-my-triage — Connect your scanners. Let AI explain the noise.')
     .version(VERSION, '-v, --version', 'Show version number');
 
   program.addCommand(createInitCommand());

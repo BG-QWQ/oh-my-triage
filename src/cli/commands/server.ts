@@ -27,7 +27,7 @@ export function createServerCommand(): Command {
       const loadedConfig = await loadOrCreateConfig(options.config);
       const dbPath = resolveDatabasePath(options.db, loadedConfig.config.database_path);
       if (!dbPath) {
-        throw new Error('Database path is not configured. Run oh-my-triage init (or omt init) or pass --db.');
+        throw new Error('Database path is not configured. Run oh-my-triage init or pass --db.');
       }
       await startMcpServer(dbPath, loadedConfig.config.sources, loadedConfig.config.token_storage);
     });

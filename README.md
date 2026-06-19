@@ -24,7 +24,7 @@ As a developer, you've probably been overwhelmed by security scanner alerts. Son
 ### Method 1: Download & Run (Recommended for beginners)
 
 1. Download the release for your platform from [Releases](https://github.com/BG-QWQ/oh-my-triage/releases)
-2. Extract and run `omt` (or `omt.exe` on Windows)
+2. Extract and run `oh-my-triage` (or `oh-my-triage.exe` on Windows)
 3. Follow the web setup wizard at `http://localhost:3456/setup`
 4. Ask Claude: *"What are my most critical security findings?"*
 
@@ -70,15 +70,15 @@ All tools use the `omt_` prefix:
 ## 🖥️ CLI Commands
 
 ```bash
-omt init              # Initialize configuration
-omt setup             # Run guided setup wizard
-omt setup --cli       # CLI fallback (no browser)
-omt ingest --sarif <path>   # Import SARIF file
-omt server            # Start MCP server
-omt server --demo     # Start with demo data
-omt config show       # Show current config
-omt config test       # Test scanner connections
-omt diagnose          # Generate diagnostic report
+oh-my-triage init              # Initialize configuration
+oh-my-triage setup             # Run guided setup wizard
+oh-my-triage setup --cli       # CLI fallback (no browser)
+oh-my-triage ingest --sarif <path>   # Import SARIF file
+oh-my-triage server            # Start MCP server
+oh-my-triage server --demo     # Start with demo data
+oh-my-triage config show       # Show current config
+oh-my-triage config test       # Test scanner connections
+oh-my-triage diagnose          # Generate diagnostic report
 ```
 
 ## 🏗️ Architecture
