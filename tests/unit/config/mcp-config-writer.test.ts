@@ -16,13 +16,14 @@ describe('writeMcpClientConfig', () => {
 
   it('writes new MCP configs with the canonical server key and OMT_DB_PATH env', async () => {
     const configPath = await tempConfigPath('new-client.json');
+    const dbPath = await tempDbPath('oh-my-triage.db');
     const client = mcpClient(configPath, false);
 
     const result = await writeMcpClientConfig({
       client,
       command: 'oh-my-triage',
       args: ['server'],
-      env: { OMT_DB_PATH: '/tmp/oh-my-triage.db' },
+      env: { OMT_DB_PATH: dbPath },
     });
 
     const config = await readJson(configPath);
@@ -33,13 +34,15 @@ describe('writeMcpClientConfig', () => {
         [DEFAULT_MCP_SERVER_NAME]: {
           command: 'oh-my-triage',
           args: ['server'],
-          env: { OMT_DB_PATH: '/tmp/oh-my-triage.db' },
+          env: { OMT_DB_PATH: dbPath },
         },
       },
     });
   });
 
   it('renames a legacy-only server key to the canonical key and creates a backup', async () => {
+    const dbPath = await tempDbPath('oh-my-triage.db');
+    const legacyDbPath = await tempDbPath('findingbridge.db');
     const configPath = await writeInitialConfig('legacy-only.json', {
       theme: 'dark',
       mcpServers: {
@@ -47,7 +50,7 @@ describe('writeMcpClientConfig', () => {
         [LEGACY_MCP_SERVER_NAME]: {
           command: 'findingbridge',
           args: ['server'],
-          env: { FINDINGBRIDGE_DB_PATH: '/tmp/findingbridge.db' },
+          env: { FINDINGBRIDGE_DB_PATH: legacyDbPath },
         },
       },
     });
@@ -56,7 +59,7 @@ describe('writeMcpClientConfig', () => {
       client: mcpClient(configPath, true),
       command: 'oh-my-triage',
       args: ['server'],
-      env: { OMT_DB_PATH: '/tmp/oh-my-triage.db' },
+      env: { OMT_DB_PATH: dbPath },
     });
 
     const config = await readJson(configPath);
@@ -68,7 +71,7 @@ describe('writeMcpClientConfig', () => {
       [DEFAULT_MCP_SERVER_NAME]: {
         command: 'oh-my-triage',
         args: ['server'],
-        env: { OMT_DB_PATH: '/tmp/oh-my-triage.db' },
+        env: { OMT_DB_PATH: dbPath },
       },
     });
 
@@ -77,6 +80,8 @@ describe('writeMcpClientConfig', () => {
   });
 
   it('updates the canonical key and leaves the legacy key in place with a warning when both exist', async () => {
+    const dbPath = await tempDbPath('oh-my-triage.db');
+    const externalConfigPath = await tempConfigPath('external-config.json');
     const legacyConfig = { command: 'findingbridge', args: ['server'] };
     const configPath = await writeInitialConfig('conflict.json', {
       mcpServers: {
@@ -88,8 +93,8 @@ describe('writeMcpClientConfig', () => {
     const result = await writeMcpClientConfig({
       client: mcpClient(configPath, true),
       command: 'oh-my-triage',
-      args: ['server', '--config', '/tmp/config.json'],
-      env: { OMT_DB_PATH: '/tmp/oh-my-triage.db' },
+      args: ['server', '--config', externalConfigPath],
+      env: { OMT_DB_PATH: dbPath },
     });
 
     const config = await readJson(configPath);
@@ -99,13 +104,14 @@ describe('writeMcpClientConfig', () => {
       [LEGACY_MCP_SERVER_NAME]: legacyConfig,
       [DEFAULT_MCP_SERVER_NAME]: {
         command: 'oh-my-triage',
-        args: ['server', '--config', '/tmp/config.json'],
-        env: { OMT_DB_PATH: '/tmp/oh-my-triage.db' },
+        args: ['server', '--config', externalConfigPath],
+        env: { OMT_DB_PATH: dbPath },
       },
     });
   });
 
   it('preserves unrelated MCP client config keys while updating the canonical server entry', async () => {
+    const dbPath = await tempDbPath('oh-my-triage.db');
     const configPath = await writeInitialConfig('preserve.json', {
       globalShortcut: 'Ctrl+Shift+M',
       mcpServers: {
@@ -119,7 +125,7 @@ describe('writeMcpClientConfig', () => {
       client: mcpClient(configPath, true),
       command: 'oh-my-triage',
       args: ['server'],
-      env: { OMT_DB_PATH: '/tmp/oh-my-triage.db' },
+      env: { OMT_DB_PATH: dbPath },
     });
 
     const config = await readJson(configPath);
@@ -129,7 +135,7 @@ describe('writeMcpClientConfig', () => {
       [DEFAULT_MCP_SERVER_NAME]: {
         command: 'oh-my-triage',
         args: ['server'],
-        env: { OMT_DB_PATH: '/tmp/oh-my-triage.db' },
+        env: { OMT_DB_PATH: dbPath },
       },
       anotherServer: { command: 'another-tool', env: { TOKEN: 'keep-me' } },
     });
@@ -138,6 +144,12 @@ describe('writeMcpClientConfig', () => {
 
 async function tempConfigPath(fileName: string): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'omt-mcp-config-'));
+  tempDirs.push(dir);
+  return join(dir, fileName);
+}
+
+async function tempDbPath(fileName: string): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'omt-mcp-db-'));
   tempDirs.push(dir);
   return join(dir, fileName);
 }
