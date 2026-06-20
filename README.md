@@ -4,7 +4,6 @@
 
 [![npm version](https://img.shields.io/npm/v/oh-my-triage)](https://www.npmjs.com/package/oh-my-triage)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-<!-- TODO: SonarCloud project key not yet migrated. Re-point this badge and link to the new oh-my-triage project once the project is created in SonarCloud. -->
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=BG-QWQ_oh-my-triage&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BG-QWQ_oh-my-triage)
 
 > **Renamed from FindingBridge.** The `findingbridge` CLI binary and `findingbridge_*` MCP tools are gone, no deprecated aliases. On first run, oh-my-triage automatically migrates any legacy `findingbridge.config.json`, `~/.findingbridge/` data, and `FINDINGBRIDGE_*` environment variables into the new `oh-my-triage.config.json`, `~/.oh-my-triage/`, and `OMT_*` names. After that one-time migration, the legacy names are not consulted again.
