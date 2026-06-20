@@ -99,14 +99,20 @@ jobs:
 
           $nodePath = node -p "process.execPath"
           if ($IsWindows) {
+            $nodeDir = Split-Path -Parent $nodePath
             Copy-Item -LiteralPath $nodePath -Destination (Join-Path $stageRoot 'bin/node.exe') -Force
+            # Node.exe on Windows depends on bundled VC++ runtime DLLs (e.g. vcruntime140.dll).
+            # Copy them so the launcher works on machines without the redistributable installed.
+            Get-ChildItem -Path $nodeDir -Filter '*.dll' | Copy-Item -Destination (Join-Path $stageRoot 'bin') -Force
             @(
               '@echo off',
-              '"%~dp0bin\node.exe" "%~dp0dist\cli\index.js" %*'
+              '"%~dp0bin\node.exe" "%~dp0dist\cli\index.js" %*',
+              'if %errorlevel% neq 0 pause'
             ) | Set-Content -LiteralPath (Join-Path $stageRoot 'oh-my-triage.cmd') -Encoding ASCII
             @(
               '@echo off',
-              '"%~dp0bin\node.exe" "%~dp0dist\cli\index.js" %*'
+              '"%~dp0bin\node.exe" "%~dp0dist\cli\index.js" %*',
+              'if %errorlevel% neq 0 pause'
             ) | Set-Content -LiteralPath (Join-Path $stageRoot 'omt.cmd') -Encoding ASCII
           } else {
             Copy-Item -LiteralPath $nodePath -Destination (Join-Path $stageRoot 'bin/node') -Force
