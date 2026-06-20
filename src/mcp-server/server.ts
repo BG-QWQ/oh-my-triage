@@ -16,7 +16,7 @@ export function createOMTMcpServer(
   const context = createOMTMcpContext(options);
   const server = new McpServer({
     name: 'oh-my-triage',
-    version: '0.1.0',
+    version: '0.1.2',
   });
 
   registerOMTTools(server, context);

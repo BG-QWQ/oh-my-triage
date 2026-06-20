@@ -581,7 +581,7 @@ async function handleStartServer(_req: IncomingMessage, res: ServerResponse): Pr
 async function handleHealth(_req: IncomingMessage, res: ServerResponse): Promise<void> {
   sendJson(res, 200, {
     status: 'ok',
-    version: '0.1.0',
+    version: '0.1.2',
     uptime: process.uptime(),
   });
 }

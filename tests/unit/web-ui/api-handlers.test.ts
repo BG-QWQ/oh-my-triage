@@ -54,7 +54,7 @@ describe('handleApiRequest', () => {
     expect(handled).toBe(true);
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain('"status":"ok"');
-    expect(response.body).toContain('"version":"0.1.0"');
+    expect(response.body).toContain('"version":"0.1.2"');
   });
 
   it('returns false for non-API requests', async () => {
