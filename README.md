@@ -48,9 +48,9 @@ npx oh-my-triage@latest server --demo
 | SARIF files | ✅ | Local file path |
 | GitHub Code Scanning | ✅ | Personal Access Token |
 | SonarCloud | ✅ | User Token |
-| Socket.dev | 🚧 | Planned for v0.2 |
-| Snyk | 🚧 | Planned for v0.2 |
-| Semgrep | 🚧 | Planned for v0.2 |
+| Socket.dev | ✅ | Organization API Token |
+| Snyk | ✅ | Personal/Service Access Token |
+| Semgrep | ✅ | Web API Token |
 
 ## 🛠️ MCP Tools
 
@@ -106,6 +106,9 @@ oh-my-triage diagnose          # Generate diagnostic report
 │  - SARIF File Reader                    │
 │  - GitHub Code Scanning API             │
 │  - SonarCloud API                       │
+│  - Socket.dev API                       │
+│  - Snyk REST API                        │
+│  - Semgrep API                          │
 └─────────────────┬───────────────────────┘
                   │
 ┌─────────────────▼───────────────────────┐
@@ -130,6 +133,9 @@ oh-my-triage diagnose          # Generate diagnostic report
   - [SARIF](docs/scanners/sarif.md)
   - [GitHub Code Scanning](docs/scanners/github-code-scanning.md)
   - [SonarCloud](docs/scanners/sonarcloud.md)
+  - [Socket.dev](docs/scanners/socket.md)
+  - [Snyk](docs/scanners/snyk.md)
+  - [Semgrep](docs/scanners/semgrep.md)
 
 ## 🤝 Contributing
 
