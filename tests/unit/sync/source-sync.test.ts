@@ -296,8 +296,8 @@ describe('SourceSyncService', () => {
   it('returns an actionable failed result for unsupported configured source types', async () => {
     const config = createConfig([
       {
-        id: 'socket-dev',
-        type: 'socket',
+        id: 'trivy',
+        type: 'trivy',
         enabled: true,
         options: {},
       },
@@ -308,12 +308,35 @@ describe('SourceSyncService', () => {
 
     expect(result.sources_failed).toBe(1);
     expect(result.results[0]).toMatchObject({
-      source_id: 'socket-dev',
-      source_type: 'socket',
+      source_id: 'trivy',
+      source_type: 'trivy',
       status: 'failed',
       findings_imported: 0,
       error_message: expect.stringContaining('does not have a sync adapter yet'),
       next_steps: [expect.stringContaining('Export the platform results as SARIF')],
+    });
+  });
+
+  it('returns TOKEN_MISSING for token scanner sources without a saved token', async () => {
+    const config = createConfig([
+      {
+        id: 'socket',
+        type: 'socket',
+        enabled: true,
+        options: { organization: 'acme' },
+      },
+    ]);
+    const service = new SourceSyncService({ db, config, databasePath: ':memory:' });
+
+    const result = await service.syncSources({ allSources: true });
+
+    expect(result.sources_failed).toBe(1);
+    expect(result.results[0]).toMatchObject({
+      source_id: 'socket',
+      source_type: 'socket',
+      status: 'failed',
+      error_message: expect.stringContaining('Token is missing'),
+      next_steps: [expect.stringContaining('oh-my-triage config set-token socket')],
     });
   });
 
@@ -344,6 +367,95 @@ describe('SourceSyncService', () => {
     expect(result.sources_synced).toBe(1);
     expect(observedProjectKey).toBe('acme_project');
     expect(config.sources[0]?.project_key).toBeUndefined();
+  });
+
+  it('uses per-call Socket project key override as organization slug without persisting config changes', async () => {
+    const config = createConfig([
+      {
+        id: 'socket',
+        type: 'socket',
+        enabled: true,
+        options: {},
+        token_ref: 'socket',
+      },
+    ]);
+    let observedOptions: Record<string, unknown> | undefined;
+    const service = new SourceSyncService({
+      db,
+      config,
+      databasePath: ':memory:',
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      createAdapter: async (source) => {
+        observedOptions = source.options;
+        return new StaticAdapter([createFinding()]);
+      },
+    });
+
+    const result = await service.syncSources({ projectKeys: { socket: 'acme-org' } });
+
+    expect(result.sources_synced).toBe(1);
+    expect(observedOptions?.organization).toBe('acme-org');
+    expect(config.sources[0]?.options.organization).toBeUndefined();
+  });
+
+  it('uses per-call Snyk project key override as organization id without persisting config changes', async () => {
+    const config = createConfig([
+      {
+        id: 'snyk',
+        type: 'snyk',
+        enabled: true,
+        options: {},
+        token_ref: 'snyk',
+      },
+    ]);
+    let observedOptions: Record<string, unknown> | undefined;
+    const service = new SourceSyncService({
+      db,
+      config,
+      databasePath: ':memory:',
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      createAdapter: async (source) => {
+        observedOptions = source.options;
+        return new StaticAdapter([createFinding()]);
+      },
+    });
+
+    const result = await service.syncSources({ projectKeys: { snyk: 'org-123' } });
+
+    expect(result.sources_synced).toBe(1);
+    expect(observedOptions?.organization).toBe('org-123');
+    expect(config.sources[0]?.options.organization).toBeUndefined();
+  });
+
+  it('uses per-call Semgrep project key override as deployment slug without persisting config changes', async () => {
+    const config = createConfig([
+      {
+        id: 'semgrep',
+        type: 'semgrep',
+        enabled: true,
+        options: {},
+        token_ref: 'semgrep',
+      },
+    ]);
+    let observedSource: SourceConfig | undefined;
+    const service = new SourceSyncService({
+      db,
+      config,
+      databasePath: ':memory:',
+      credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
+      createAdapter: async (source) => {
+        observedSource = source;
+        return new StaticAdapter([createFinding()]);
+      },
+    });
+
+    const result = await service.syncSources({ projectKeys: { semgrep: 'acme-deployment' } });
+
+    expect(result.sources_synced).toBe(1);
+    expect(observedSource?.project_key).toBe('acme-deployment');
+    expect(observedSource?.options.deployment).toBe('acme-deployment');
+    expect(config.sources[0]?.project_key).toBeUndefined();
+    expect(config.sources[0]?.options.deployment).toBeUndefined();
   });
 
   it('syncs multiple GitHub repository sources independently with a shared token ref', async () => {

@@ -5,6 +5,9 @@ import { promisify } from 'node:util';
 import type { AdapterFetchResult, BaseAdapter } from '../adapters/base-adapter.js';
 import { GitHubAdapter } from '../adapters/github/github-adapter.js';
 import { SarifAdapter } from '../adapters/sarif/sarif-adapter.js';
+import { SocketAdapter } from '../adapters/socket/socket-adapter.js';
+import { SnykAdapter } from '../adapters/snyk/snyk-adapter.js';
+import { SemgrepAdapter } from '../adapters/semgrep/semgrep-adapter.js';
 import { SonarCloudAdapter } from '../adapters/sonarcloud/sonarcloud-adapter.js';
 import { SonarCloudClient } from '../adapters/sonarcloud/sonarcloud-client.js';
 import type { SonarCloudProject } from '../adapters/sonarcloud/sonarcloud-schemas.js';
@@ -356,7 +359,7 @@ export class SourceSyncService {
   }
 
   private async tokenForSource(source: SourceConfig): Promise<string | undefined> {
-    if (source.type === 'github' || source.type === 'sonarcloud') {
+    if (['github', 'sonarcloud', 'socket', 'snyk', 'semgrep'].includes(source.type)) {
       const token = await this.credentialStore.getToken(source.id, this.options.config.token_storage, source.token_ref);
       if (!token) {
         throw new OMTError({
@@ -405,7 +408,7 @@ export class SourceSyncService {
             message: `SonarCloud source ${source.id} requires token and project_key.`,
             nextSteps: [
               'Call omt_list_source_projects with organizations[source_id] if the SonarCloud source configuration does not include an organization.',
-              'Choose the project that matches the current repository and pass it to omt_sync_sources as project_keys[source_id], or save it as this source project_key before retrying sync.',
+              'Choose the matching project key and pass it to omt_sync_sources as project_keys[source_id], or save it as this source project_key before retrying sync.',
             ],
             retryable: false,
           });
@@ -414,6 +417,66 @@ export class SourceSyncService {
           token,
           projectKey: source.project_key,
           organization: readStringOption(source, 'organization'),
+          apiBaseUrl: source.api_url,
+        });
+      }
+      case 'socket': {
+        const orgSlug = readStringOption(source, 'organization') ?? readStringOption(source, 'org_slug');
+        if (!token || !orgSlug) {
+          throw new OMTError({
+            code: ErrorCodes.CONFIG_INVALID,
+            message: `Socket.dev source ${source.id} requires token and organization/org_slug.`,
+            nextSteps: [
+              'Call omt_list_source_projects to list visible Socket.dev organizations.',
+              'Save the organization slug in the source options or pass it when syncing.',
+            ],
+            retryable: false,
+          });
+        }
+        return new SocketAdapter({
+          token,
+          orgSlug,
+          apiBaseUrl: source.api_url,
+        });
+      }
+      case 'snyk': {
+        const orgId = readStringOption(source, 'organization') ?? readStringOption(source, 'org_id');
+        if (!token || !orgId) {
+          throw new OMTError({
+            code: ErrorCodes.CONFIG_INVALID,
+            message: `Snyk source ${source.id} requires token and organization/org_id.`,
+            nextSteps: [
+              'Call omt_list_source_projects to list visible Snyk organizations.',
+              'Save the organization ID in the source options or pass it when syncing.',
+            ],
+            retryable: false,
+          });
+        }
+        return new SnykAdapter({
+          token,
+          orgId,
+          apiBaseUrl: source.api_url,
+        });
+      }
+      case 'semgrep': {
+        const deploymentSlug =
+          readStringOption(source, 'deployment') ??
+          readStringOption(source, 'deployment_slug') ??
+          source.project_key;
+        if (!token || !deploymentSlug) {
+          throw new OMTError({
+            code: ErrorCodes.CONFIG_INVALID,
+            message: `Semgrep source ${source.id} requires token and deployment/deployment_slug/project_key.`,
+            nextSteps: [
+              'Call omt_list_source_projects to list visible Semgrep deployments.',
+              'Save the deployment slug in the source options or pass it when syncing.',
+            ],
+            retryable: false,
+          });
+        }
+        return new SemgrepAdapter({
+          token,
+          deploymentSlug,
           apiBaseUrl: source.api_url,
         });
       }
@@ -667,12 +730,35 @@ function readStringOption(source: SourceConfig, key: string): string | undefined
 
 function applySyncOverrides(source: SourceConfig, options: SyncSourcesOptions): SourceConfig {
   const projectKey = options.projectKeys?.[source.id]?.trim();
-  if (source.type !== 'sonarcloud' || !projectKey) {
+  if (!projectKey) {
     return source;
   }
 
-  return {
-    ...source,
-    project_key: projectKey,
-  };
+  switch (source.type) {
+    case 'sonarcloud': {
+      return { ...source, project_key: projectKey };
+    }
+    case 'socket': {
+      return {
+        ...source,
+        options: { ...source.options, organization: projectKey },
+      };
+    }
+    case 'snyk': {
+      return {
+        ...source,
+        options: { ...source.options, organization: projectKey },
+      };
+    }
+    case 'semgrep': {
+      return {
+        ...source,
+        project_key: projectKey,
+        options: { ...source.options, deployment: projectKey },
+      };
+    }
+    default: {
+      return source;
+    }
+  }
 }
