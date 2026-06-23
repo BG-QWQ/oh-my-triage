@@ -176,7 +176,7 @@ describe('handleApiRequest', () => {
 
   it('tests Socket.dev connection through the setup API', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      jsonResponse({ organizations: [{ slug: 'acme', name: 'Acme' }], endCursor: null })
+      jsonResponse({ organizations: { acme: { id: 'org-1', name: 'Acme' } } })
     );
     const response = new StubResponse();
     const request = createJsonRequest('/api/setup/test-connection', 'POST', {

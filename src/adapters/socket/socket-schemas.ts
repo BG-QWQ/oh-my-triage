@@ -1,18 +1,21 @@
 import { z } from 'zod';
 
-/** Validate a Socket.dev organization returned by the organizations API. */
-export const SocketOrganizationSchema = z
+/** Validate a Socket.dev organization entry inside the organizations map. */
+export const SocketOrganizationEntrySchema = z
   .object({
-    slug: z.string(),
-    name: z.string().optional(),
+    id: z.string(),
+    name: z.string().nullable().optional(),
   })
   .passthrough();
 
-/** Validate the Socket.dev organizations response. */
+/** Validate the Socket.dev organizations response.
+ *
+ * The live API returns organizations as a map keyed by organization slug,
+ * not as an array. Each value contains the organization id and optional name.
+ */
 export const SocketOrganizationsResponseSchema = z
   .object({
-    organizations: z.array(SocketOrganizationSchema),
-    endCursor: z.string().nullable().optional(),
+    organizations: z.record(SocketOrganizationEntrySchema),
   })
   .passthrough();
 
@@ -45,8 +48,8 @@ export const SocketAlertsResponseSchema = z
   })
   .passthrough();
 
-/** Organization returned by the Socket.dev organizations API. */
-export type SocketOrganization = z.infer<typeof SocketOrganizationSchema>;
+/** Organization entry value inside the Socket.dev organizations map. */
+export type SocketOrganizationEntry = z.infer<typeof SocketOrganizationEntrySchema>;
 
 /** Alert returned by the Socket.dev alerts API. */
 export type SocketAlert = z.infer<typeof SocketAlertSchema>;

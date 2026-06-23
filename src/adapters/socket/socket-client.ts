@@ -25,26 +25,23 @@ export class SocketClient {
     this.apiBaseUrl = options.apiBaseUrl ?? SOCKET_API_BASE;
   }
 
-  /** List organizations visible to the configured Socket token. */
+  /** List organizations visible to the configured Socket token.
+   *
+   * The API returns organizations as a slug-keyed object; this method converts
+   * that object into a stable array of { slug, name } entries.
+   */
   async listOrganizations(
-    options: { cursor?: string } = {}
-  ): Promise<{ organizations: Array<{ slug: string; name?: string }>; hasMore: boolean; endCursor?: string }> {
+    _options: { cursor?: string } = {}
+  ): Promise<{ organizations: Array<{ slug: string; name?: string }>; hasMore: boolean }> {
     try {
-      const path = options.cursor
-        ? `/organizations?startAfterCursor=${encodeURIComponent(options.cursor)}`
-        : '/organizations';
-      const response = await this.request(path);
+      const response = await this.request('/organizations');
       const body = (await response.json()) as unknown;
       const parsed = SocketOrganizationsResponseSchema.parse(body);
-      const hasMore = parsed.endCursor !== null && parsed.endCursor !== undefined;
-      const result: { organizations: Array<{ slug: string; name?: string }>; hasMore: boolean; endCursor?: string } = {
-        organizations: parsed.organizations,
-        hasMore,
-      };
-      if (parsed.endCursor !== null && parsed.endCursor !== undefined) {
-        result.endCursor = parsed.endCursor;
-      }
-      return result;
+      const organizations = Object.entries(parsed.organizations).map(([slug, organization]) => ({
+        slug,
+        name: organization.name ?? undefined,
+      }));
+      return { organizations, hasMore: false };
     } catch (error: unknown) {
       throw toAdapterError(error, {
         code: ErrorCodes.ADAPTER_FETCH_FAILED,

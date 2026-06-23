@@ -260,7 +260,7 @@ export class ProjectDiscoveryService {
           organization: redactSecrets(organization.slug),
         }))
       );
-      cursor = result.endCursor;
+      cursor = undefined;
       hasMore = result.hasMore;
       pagesFetched += 1;
     } while (hasMore && pagesFetched < maxPages);

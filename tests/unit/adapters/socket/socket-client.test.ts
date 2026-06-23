@@ -8,7 +8,7 @@ describe('SocketClient', () => {
   });
 
   it('calls the organizations endpoint with bearer auth and the project user agent', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ organizations: [] }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ organizations: {} }));
     const client = new SocketClient({ token: 'token-123', apiBaseUrl: 'https://api.socket.dev/v0' });
 
     await expect(client.listOrganizations()).resolves.toEqual({ organizations: [], hasMore: false });
@@ -56,13 +56,24 @@ describe('SocketClient', () => {
     );
   });
 
-  it('treats an empty page with a cursor as having more results', async () => {
+  it('converts a slug-keyed organizations object into an array', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      jsonResponse({ organizations: [], endCursor: 'cursor-2' })
+      jsonResponse({
+        organizations: {
+          acme: { id: 'org-1', name: 'Acme Inc.' },
+          'acme-labs': { id: 'org-2', name: null },
+        },
+      })
     );
     const client = new SocketClient({ token: 'token-123', apiBaseUrl: 'https://api.socket.dev/v0' });
 
-    await expect(client.listOrganizations()).resolves.toEqual({ organizations: [], hasMore: true, endCursor: 'cursor-2' });
+    await expect(client.listOrganizations()).resolves.toEqual({
+      organizations: [
+        { slug: 'acme', name: 'Acme Inc.' },
+        { slug: 'acme-labs', name: undefined },
+      ],
+      hasMore: false,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

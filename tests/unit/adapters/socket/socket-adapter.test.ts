@@ -10,7 +10,7 @@ describe('SocketAdapter', () => {
 
   it('tests connection by listing organizations', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      jsonResponse({ organizations: [{ slug: 'acme', name: 'Acme' }], endCursor: null })
+      jsonResponse({ organizations: { acme: { id: 'org-1', name: 'Acme' } } })
     );
 
     const adapter = new SocketAdapter({ token: 'token-123' });
