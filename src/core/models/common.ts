@@ -59,6 +59,7 @@ export const SEVERITY_MAP: Record<string, Record<string, UnifiedSeverity>> = {
   socket: {
     critical: 'critical',
     high: 'high',
+    medium: 'medium',
     middle: 'medium',
     low: 'low',
   },
@@ -69,6 +70,10 @@ export const SEVERITY_MAP: Record<string, Record<string, UnifiedSeverity>> = {
     low: 'low',
   },
   semgrep: {
+    critical: 'critical',
+    high: 'high',
+    medium: 'medium',
+    low: 'low',
     error: 'high',
     warning: 'medium',
     info: 'low',

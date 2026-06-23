@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeSeverity, severityOrder, compareSeverity } from '@/core/normalization/severity-mapper.js';
+import { SEVERITY_MAP } from '@/core/models/common.js';
 import type { UnifiedSeverity } from '@/core/models/common.js';
 
 describe('normalizeSeverity', () => {
@@ -21,6 +22,17 @@ describe('normalizeSeverity', () => {
     { raw: 'MAJOR', tool: 'sonarcloud', expected: 'medium' },
     { raw: 'MINOR', tool: 'sonarcloud', expected: 'low' },
     { raw: 'INFO', tool: 'sonarcloud', expected: 'info' },
+    // Socket
+    { raw: 'medium', tool: 'socket', expected: 'medium' },
+    { raw: 'middle', tool: 'socket', expected: 'medium' },
+    // Semgrep
+    { raw: 'critical', tool: 'semgrep', expected: 'critical' },
+    { raw: 'high', tool: 'semgrep', expected: 'high' },
+    { raw: 'medium', tool: 'semgrep', expected: 'medium' },
+    { raw: 'low', tool: 'semgrep', expected: 'low' },
+    { raw: 'ERROR', tool: 'semgrep', expected: 'high' },
+    { raw: 'WARNING', tool: 'semgrep', expected: 'medium' },
+    { raw: 'INFO', tool: 'semgrep', expected: 'low' },
     // Generic
     { raw: 'unknown', tool: 'unknown', expected: 'info' },
     { raw: 'whatever', tool: 'unknown', expected: 'info' },
@@ -31,6 +43,26 @@ describe('normalizeSeverity', () => {
       expect(normalizeSeverity(raw, tool)).toBe(expected);
     });
   }
+});
+
+describe('SEVERITY_MAP', () => {
+  it('maps socket medium and middle to medium', () => {
+    expect(SEVERITY_MAP.socket.medium).toBe('medium');
+    expect(SEVERITY_MAP.socket.middle).toBe('medium');
+  });
+
+  it('maps semgrep current severities to the unified scale', () => {
+    expect(SEVERITY_MAP.semgrep.critical).toBe('critical');
+    expect(SEVERITY_MAP.semgrep.high).toBe('high');
+    expect(SEVERITY_MAP.semgrep.medium).toBe('medium');
+    expect(SEVERITY_MAP.semgrep.low).toBe('low');
+  });
+
+  it('keeps semgrep legacy severity strings mapped', () => {
+    expect(SEVERITY_MAP.semgrep.error).toBe('high');
+    expect(SEVERITY_MAP.semgrep.warning).toBe('medium');
+    expect(SEVERITY_MAP.semgrep.info).toBe('low');
+  });
 });
 
 describe('severityOrder', () => {
