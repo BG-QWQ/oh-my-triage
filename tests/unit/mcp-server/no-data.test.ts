@@ -350,8 +350,8 @@ describe('MCP no-data responses', () => {
         databasePath: ':memory:',
         configuredSources: [
           {
-            id: 'socket-dev',
-            type: 'socket',
+            id: 'trivy',
+            type: 'trivy',
             enabled: true,
             options: {},
           },
@@ -375,7 +375,7 @@ describe('MCP no-data responses', () => {
     });
     expect(data.results).toEqual([
       expect.objectContaining({
-        source_id: 'socket-dev',
+        source_id: 'trivy',
         status: 'failed',
         next_steps: [expect.stringContaining('Export the platform results as SARIF')],
       }),
