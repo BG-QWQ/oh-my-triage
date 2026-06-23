@@ -1,7 +1,7 @@
 /**
  * oh-my-triage Setup Wizard — client-side application logic.
  *
- * Manages the 8-step setup flow: welcome, scanner selection, per-scanner
+ * Manages the 11-step setup flow: welcome, scanner selection, per-scanner
  * configuration, security settings, MCP config generation, and summary.
  * All API calls go through setup-api.ts with Zod-validated responses.
  */
@@ -33,6 +33,9 @@ const STEPS = [
   'sarif-config',
   'github-config',
   'sonarcloud-config',
+  'socket-config',
+  'snyk-config',
+  'semgrep-config',
   'security-settings',
   'mcp-config',
   'summary',
@@ -44,6 +47,9 @@ const SCANNER_CONFIG_STEPS: Array<{ scanner: ScannerType; step: StepId }> = [
   { scanner: 'sarif', step: 'sarif-config' },
   { scanner: 'github', step: 'github-config' },
   { scanner: 'sonarcloud', step: 'sonarcloud-config' },
+  { scanner: 'socket', step: 'socket-config' },
+  { scanner: 'snyk', step: 'snyk-config' },
+  { scanner: 'semgrep', step: 'semgrep-config' },
 ];
 
 /** Wizard state tracked across steps */
@@ -58,6 +64,9 @@ interface WizardState {
   sonarcloudToken: string;
   sonarcloudOrganization: string;
   sonarcloudProject: string;
+  socketToken: string;
+  snykToken: string;
+  semgrepToken: string;
   tokenStorage: TokenStorage;
   connectionResults: Map<ScannerType, TestConnectionResponse>;
   mcpClients: McpClientDetection | null;
@@ -78,6 +87,9 @@ const state: WizardState = {
   sonarcloudToken: '',
   sonarcloudOrganization: '',
   sonarcloudProject: '',
+  socketToken: '',
+  snykToken: '',
+  semgrepToken: '',
   tokenStorage: 'keychain',
   connectionResults: new Map(),
   mcpClients: null,
@@ -510,6 +522,186 @@ async function handleSonarcloudConnectionTest(testBtn: HTMLButtonElement, status
     }
 }
 
+// ── Step: Socket.dev config ──────────────────────────────────────────
+
+function initSocketConfigStep(): void {
+  const tokenInput = $<HTMLInputElement>('#socket-token');
+  const statusContainer = $<HTMLElement>('#socket-status');
+
+  tokenInput.value = state.socketToken;
+
+  // Toggle password visibility
+  const toggleBtn = $<HTMLButtonElement>('#toggle-socket-token');
+  toggleBtn.addEventListener('click', () => {
+    const isPassword = tokenInput.type === 'password';
+    tokenInput.type = isPassword ? 'text' : 'password';
+    toggleBtn.textContent = isPassword ? 'Hide' : 'Show';
+  });
+
+  tokenInput.addEventListener('input', () => {
+    state.socketToken = tokenInput.value.trim();
+  });
+
+  // Test connection
+  const testBtn = $<HTMLButtonElement>('#test-socket-connection');
+  testBtn.addEventListener('click', () => {
+    void handleSocketConnectionTest(testBtn, statusContainer);
+  });
+}
+
+/** Test Socket.dev connectivity and update the wizard state. */
+async function handleSocketConnectionTest(testBtn: HTMLButtonElement, statusContainer: HTMLElement): Promise<void> {
+  if (!state.socketToken) {
+    showStatus(statusContainer, 'error', 'Please enter a Socket.dev token first.');
+    return;
+  }
+
+  showLoading(statusContainer, 'Testing Socket.dev connection...');
+  testBtn.disabled = true;
+
+  try {
+    const result = await testConnection('socket', {
+      token: state.socketToken,
+    });
+    removeLoading(statusContainer);
+
+    if (result.valid) {
+      state.connectionResults.set('socket', result);
+      showStatus(statusContainer, 'success', `Connected! Found ${result.projects_found ?? 0} projects.`);
+    } else {
+      showStatus(statusContainer, 'error', result.reason ?? 'Connection failed. Check your token.');
+      if (result.suggestion) {
+        showStatus(statusContainer, 'warning', result.suggestion);
+      }
+    }
+  } catch (err) {
+    removeLoading(statusContainer);
+    showStatus(statusContainer, 'error', `Connection test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  } finally {
+    testBtn.disabled = false;
+  }
+}
+
+// ── Step: Snyk config ────────────────────────────────────────────────
+
+function initSnykConfigStep(): void {
+  const tokenInput = $<HTMLInputElement>('#snyk-token');
+  const statusContainer = $<HTMLElement>('#snyk-status');
+
+  tokenInput.value = state.snykToken;
+
+  // Toggle password visibility
+  const toggleBtn = $<HTMLButtonElement>('#toggle-snyk-token');
+  toggleBtn.addEventListener('click', () => {
+    const isPassword = tokenInput.type === 'password';
+    tokenInput.type = isPassword ? 'text' : 'password';
+    toggleBtn.textContent = isPassword ? 'Hide' : 'Show';
+  });
+
+  tokenInput.addEventListener('input', () => {
+    state.snykToken = tokenInput.value.trim();
+  });
+
+  // Test connection
+  const testBtn = $<HTMLButtonElement>('#test-snyk-connection');
+  testBtn.addEventListener('click', () => {
+    void handleSnykConnectionTest(testBtn, statusContainer);
+  });
+}
+
+/** Test Snyk connectivity and update the wizard state. */
+async function handleSnykConnectionTest(testBtn: HTMLButtonElement, statusContainer: HTMLElement): Promise<void> {
+  if (!state.snykToken) {
+    showStatus(statusContainer, 'error', 'Please enter a Snyk token first.');
+    return;
+  }
+
+  showLoading(statusContainer, 'Testing Snyk connection...');
+  testBtn.disabled = true;
+
+  try {
+    const result = await testConnection('snyk', {
+      token: state.snykToken,
+    });
+    removeLoading(statusContainer);
+
+    if (result.valid) {
+      state.connectionResults.set('snyk', result);
+      showStatus(statusContainer, 'success', `Connected! Found ${result.projects_found ?? 0} projects.`);
+    } else {
+      showStatus(statusContainer, 'error', result.reason ?? 'Connection failed. Check your token.');
+      if (result.suggestion) {
+        showStatus(statusContainer, 'warning', result.suggestion);
+      }
+    }
+  } catch (err) {
+    removeLoading(statusContainer);
+    showStatus(statusContainer, 'error', `Connection test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  } finally {
+    testBtn.disabled = false;
+  }
+}
+
+// ── Step: Semgrep config ─────────────────────────────────────────────
+
+function initSemgrepConfigStep(): void {
+  const tokenInput = $<HTMLInputElement>('#semgrep-token');
+  const statusContainer = $<HTMLElement>('#semgrep-status');
+
+  tokenInput.value = state.semgrepToken;
+
+  // Toggle password visibility
+  const toggleBtn = $<HTMLButtonElement>('#toggle-semgrep-token');
+  toggleBtn.addEventListener('click', () => {
+    const isPassword = tokenInput.type === 'password';
+    tokenInput.type = isPassword ? 'text' : 'password';
+    toggleBtn.textContent = isPassword ? 'Hide' : 'Show';
+  });
+
+  tokenInput.addEventListener('input', () => {
+    state.semgrepToken = tokenInput.value.trim();
+  });
+
+  // Test connection
+  const testBtn = $<HTMLButtonElement>('#test-semgrep-connection');
+  testBtn.addEventListener('click', () => {
+    void handleSemgrepConnectionTest(testBtn, statusContainer);
+  });
+}
+
+/** Test Semgrep connectivity and update the wizard state. */
+async function handleSemgrepConnectionTest(testBtn: HTMLButtonElement, statusContainer: HTMLElement): Promise<void> {
+  if (!state.semgrepToken) {
+    showStatus(statusContainer, 'error', 'Please enter a Semgrep token first.');
+    return;
+  }
+
+  showLoading(statusContainer, 'Testing Semgrep connection...');
+  testBtn.disabled = true;
+
+  try {
+    const result = await testConnection('semgrep', {
+      token: state.semgrepToken,
+    });
+    removeLoading(statusContainer);
+
+    if (result.valid) {
+      state.connectionResults.set('semgrep', result);
+      showStatus(statusContainer, 'success', `Connected! Found ${result.projects_found ?? 0} projects.`);
+    } else {
+      showStatus(statusContainer, 'error', result.reason ?? 'Connection failed. Check your token.');
+      if (result.suggestion) {
+        showStatus(statusContainer, 'warning', result.suggestion);
+      }
+    }
+  } catch (err) {
+    removeLoading(statusContainer);
+    showStatus(statusContainer, 'error', `Connection test failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  } finally {
+    testBtn.disabled = false;
+  }
+}
+
 // ── Step: Security settings ──────────────────────────────────────────
 
 function initSecuritySettingsStep(): void {
@@ -574,6 +766,39 @@ function buildSetupSources(): SaveSetupSource[] {
       options: {
         organization: state.sonarcloudOrganization || undefined,
       },
+    });
+  }
+
+  if (state.selectedScanners.has('socket')) {
+    sources.push({
+      id: 'socket',
+      type: 'socket',
+      name: 'Socket.dev',
+      enabled: true,
+      token: state.socketToken || undefined,
+      options: {},
+    });
+  }
+
+  if (state.selectedScanners.has('snyk')) {
+    sources.push({
+      id: 'snyk',
+      type: 'snyk',
+      name: 'Snyk',
+      enabled: true,
+      token: state.snykToken || undefined,
+      options: {},
+    });
+  }
+
+  if (state.selectedScanners.has('semgrep')) {
+    sources.push({
+      id: 'semgrep',
+      type: 'semgrep',
+      name: 'Semgrep',
+      enabled: true,
+      token: state.semgrepToken || undefined,
+      options: {},
     });
   }
 
@@ -811,6 +1036,9 @@ function initSummaryStep(): void {
     sarif: 'SARIF Files',
     github: 'GitHub Code Scanning',
     sonarcloud: 'SonarCloud',
+    socket: 'Socket.dev',
+    snyk: 'Snyk',
+    semgrep: 'Semgrep',
   };
 
   state.selectedScanners.forEach((scanner) => {
@@ -907,6 +1135,9 @@ export function initApp(): void {
   initSarifConfigStep();
   initGithubConfigStep();
   initSonarcloudConfigStep();
+  initSocketConfigStep();
+  initSnykConfigStep();
+  initSemgrepConfigStep();
   initSecuritySettingsStep();
 
   // Show initial step

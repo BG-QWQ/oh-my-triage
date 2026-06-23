@@ -36,16 +36,28 @@
           <span class="step-nav-number">5</span>
           <span>SonarCloud Config</span>
         </li>
-        <li class="step-nav-item" data-step="security-settings">
+        <li class="step-nav-item" data-step="socket-config">
           <span class="step-nav-number">6</span>
+          <span>Socket Config</span>
+        </li>
+        <li class="step-nav-item" data-step="snyk-config">
+          <span class="step-nav-number">7</span>
+          <span>Snyk Config</span>
+        </li>
+        <li class="step-nav-item" data-step="semgrep-config">
+          <span class="step-nav-number">8</span>
+          <span>Semgrep Config</span>
+        </li>
+        <li class="step-nav-item" data-step="security-settings">
+          <span class="step-nav-number">9</span>
           <span>Security</span>
         </li>
         <li class="step-nav-item" data-step="mcp-config">
-          <span class="step-nav-number">7</span>
+          <span class="step-nav-number">10</span>
           <span>MCP Config</span>
         </li>
         <li class="step-nav-item" data-step="summary">
-          <span class="step-nav-number">8</span>
+          <span class="step-nav-number">11</span>
           <span>Summary</span>
         </li>
       </ol>
@@ -98,6 +110,30 @@
             <div class="card-icon">☁️</div>
             <div class="card-title">SonarCloud</div>
             <div class="card-desc">Pull findings from SonarCloud project analysis.</div>
+          </label>
+
+          <label class="checkbox-card" data-scanner="socket">
+            <input type="checkbox" value="socket">
+            <span class="check-indicator"></span>
+            <div class="card-icon">🔌</div>
+            <div class="card-title">Socket.dev</div>
+            <div class="card-desc">Connect Socket.dev to scan open-source dependencies for risks.</div>
+          </label>
+
+          <label class="checkbox-card" data-scanner="snyk">
+            <input type="checkbox" value="snyk">
+            <span class="check-indicator"></span>
+            <div class="card-icon">🛡️</div>
+            <div class="card-title">Snyk</div>
+            <div class="card-desc">Import vulnerabilities from Snyk projects and container scans.</div>
+          </label>
+
+          <label class="checkbox-card" data-scanner="semgrep">
+            <input type="checkbox" value="semgrep">
+            <span class="check-indicator"></span>
+            <div class="card-icon">🔍</div>
+            <div class="card-title">Semgrep</div>
+            <div class="card-desc">Pull findings from Semgrep Code, Supply Chain, or Secrets.</div>
           </label>
         </div>
       </section>
@@ -187,7 +223,76 @@
         </div>
       </section>
 
-      <!-- Step 6: Security settings -->
+      <!-- Step 6: Socket.dev config -->
+      <section class="step-panel" data-step="socket-config">
+        <h2>Socket.dev Configuration</h2>
+        <p class="step-subtitle">Connect your Socket.dev organization to pull dependency risk findings.</p>
+
+        <div class="form-group">
+          <label for="socket-token">API Token</label>
+          <div class="input-wrapper">
+            <input type="password" id="socket-token" placeholder="Your Socket.dev API token">
+            <button type="button" class="toggle-password" id="toggle-socket-token">Show</button>
+          </div>
+          <p class="form-hint">Generate an organization token at <a href="https://socket.dev/settings/org" target="_blank" rel="noopener">Socket.dev → Organization Settings</a>.</p>
+        </div>
+
+        <div class="form-group">
+          <button type="button" class="btn btn-secondary" id="test-socket-connection">
+            <span class="spinner" style="display:none;"></span>
+            Test Connection
+          </button>
+        </div>
+        <div id="socket-status"></div>
+      </section>
+
+      <!-- Step 7: Snyk config -->
+      <section class="step-panel" data-step="snyk-config">
+        <h2>Snyk Configuration</h2>
+        <p class="step-subtitle">Connect your Snyk account to import project vulnerabilities.</p>
+
+        <div class="form-group">
+          <label for="snyk-token">API Token</label>
+          <div class="input-wrapper">
+            <input type="password" id="snyk-token" placeholder="Your Snyk API token">
+            <button type="button" class="toggle-password" id="toggle-snyk-token">Show</button>
+          </div>
+          <p class="form-hint">Create a personal or service account token at <a href="https://app.snyk.io/account" target="_blank" rel="noopener">Snyk → Account Settings</a>.</p>
+        </div>
+
+        <div class="form-group">
+          <button type="button" class="btn btn-secondary" id="test-snyk-connection">
+            <span class="spinner" style="display:none;"></span>
+            Test Connection
+          </button>
+        </div>
+        <div id="snyk-status"></div>
+      </section>
+
+      <!-- Step 8: Semgrep config -->
+      <section class="step-panel" data-step="semgrep-config">
+        <h2>Semgrep Configuration</h2>
+        <p class="step-subtitle">Connect your Semgrep deployment to pull code and supply-chain findings.</p>
+
+        <div class="form-group">
+          <label for="semgrep-token">Web API Token</label>
+          <div class="input-wrapper">
+            <input type="password" id="semgrep-token" placeholder="Your Semgrep web API token">
+            <button type="button" class="toggle-password" id="toggle-semgrep-token">Show</button>
+          </div>
+          <p class="form-hint">Generate a token at <a href="https://semgrep.dev/orgs/-/settings/tokens" target="_blank" rel="noopener">Semgrep → Settings → Tokens</a>.</p>
+        </div>
+
+        <div class="form-group">
+          <button type="button" class="btn btn-secondary" id="test-semgrep-connection">
+            <span class="spinner" style="display:none;"></span>
+            Test Connection
+          </button>
+        </div>
+        <div id="semgrep-status"></div>
+      </section>
+
+      <!-- Step 9: Security settings -->
       <section class="step-panel" data-step="security-settings">
         <h2>Security Settings</h2>
         <p class="step-subtitle">Choose how oh-my-triage stores your scanner tokens.</p>
@@ -220,7 +325,7 @@
         <div id="security-status"></div>
       </section>
 
-      <!-- Step 7: MCP config -->
+      <!-- Step 10: MCP config -->
       <section class="step-panel" data-step="mcp-config">
         <h2>MCP Configuration</h2>
         <p class="step-subtitle">Generate MCP client configuration so your AI tools can connect to oh-my-triage.</p>
@@ -248,7 +353,7 @@
         </div>
       </section>
 
-      <!-- Step 8: Summary -->
+      <!-- Step 11: Summary -->
       <section class="step-panel" data-step="summary">
         <h2>All Set!</h2>
         <p class="step-subtitle">Review your setup configuration before starting the server.</p>
