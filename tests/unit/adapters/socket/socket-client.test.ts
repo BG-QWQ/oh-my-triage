@@ -96,14 +96,14 @@ describe('SocketClient', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         organizations: {
-          '363089': { id: '363089', name: 'BG', slug: 'bg-8npfpbx8' },
+          '363089': { id: '363089', name: 'Example Org', slug: 'xxx-xxxxxx' },
         },
       })
     );
     const client = new SocketClient({ token: 'token-123', apiBaseUrl: 'https://api.socket.dev/v0' });
 
     await expect(client.listOrganizations()).resolves.toEqual({
-      organizations: [{ slug: 'bg-8npfpbx8', name: 'BG' }],
+      organizations: [{ slug: 'xxx-xxxxxx', name: 'Example Org' }],
       hasMore: false,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
