@@ -11,6 +11,7 @@ import type { SocketAlert } from './socket-schemas.js';
 /** Configuration for syncing Socket.dev alerts. */
 export type SocketAdapterOptions = SocketClientOptions & {
   orgSlug?: string;
+  repositoryFullName?: string;
   projectRoot?: string;
 };
 
@@ -21,11 +22,13 @@ export class SocketAdapter implements BaseAdapter {
 
   private readonly client: SocketClient;
   private readonly orgSlug?: string;
+  private readonly repositoryFullName?: string;
   private readonly projectRoot?: string;
 
   constructor(options: SocketAdapterOptions) {
     this.client = new SocketClient(options);
     this.orgSlug = options.orgSlug;
+    this.repositoryFullName = options.repositoryFullName;
     this.projectRoot = options.projectRoot;
   }
 
@@ -62,6 +65,7 @@ export class SocketAdapter implements BaseAdapter {
     const result = await this.client.listAlerts(this.orgSlug, {
       startAfterCursor: options.cursor,
       perPage: options.limit,
+      repositoryFullName: this.repositoryFullName,
     });
     return {
       findings: result.alerts.map((alert) => mapSocketAlertToFinding(alert, this.projectRoot)),

@@ -420,7 +420,7 @@ describe('SourceSyncService', () => {
       },
     });
 
-    const result = await service.syncSources({ projectKeys: { snyk: 'org-123' } });
+    const result = await service.syncSources({ allSources: true, projectKeys: { snyk: 'org-123' } });
 
     expect(result.sources_synced).toBe(1);
     expect(observedOptions?.organization).toBe('org-123');
@@ -449,7 +449,7 @@ describe('SourceSyncService', () => {
       },
     });
 
-    const result = await service.syncSources({ projectKeys: { semgrep: 'acme-deployment' } });
+    const result = await service.syncSources({ allSources: true, projectKeys: { semgrep: 'acme-deployment' } });
 
     expect(result.sources_synced).toBe(1);
     expect(observedSource?.project_key).toBe('acme-deployment');
@@ -501,7 +501,72 @@ describe('SourceSyncService', () => {
     );
   });
 
-  it('explicitly skips account-scoped sources that cannot be narrowed to the current project', async () => {
+  it('scopes Socket.dev, Snyk, and Semgrep to the current repository in default sync', async () => {
+    const config = createConfig(scopedSources());
+    const { observedSources, service } = createObservedSyncService({
+      db,
+      config,
+      snykProjects: [{ id: 'snyk-proj-web', target: { url: 'https://github.com/acme/web' } }],
+    });
+
+    const result = await service.syncSources();
+
+    expect(result).toMatchObject({ sources_total: 4, sources_synced: 4, sources_skipped: 0 });
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web', 'socket', 'snyk', 'semgrep']);
+    const socketSource = observedSources.find((source) => source.id === 'socket');
+    const snykSource = observedSources.find((source) => source.id === 'snyk');
+    const semgrepSource = observedSources.find((source) => source.id === 'semgrep');
+    expect(socketSource?.options.repository_full_name).toBe('acme/web');
+    expect(semgrepSource?.options.repository_full_name).toBe('acme/web');
+    expect(snykSource?.options.repository_full_name).toBe('acme/web');
+    expect(snykSource?.options.project_ids).toEqual(['snyk-proj-web']);
+  });
+
+  it('skips account-scoped sources when no current GitHub repository is detected', async () => {
+    const config = createConfig(scopedSources());
+    const { observedSources, service } = createObservedSyncService({
+      db,
+      config,
+      repository: null,
+    });
+
+    const result = await service.syncSources();
+
+    expect(result).toMatchObject({ sources_total: 3, sources_synced: 0, sources_skipped: 3 });
+    expectObservedSourceIds(observedSources, []);
+    expectScopedSourceNeedsRepositorySkip(result, 'socket');
+    expectScopedSourceNeedsRepositorySkip(result, 'snyk');
+    expectScopedSourceNeedsRepositorySkip(result, 'semgrep');
+  });
+
+  it('skips Snyk source when no project matches the current repository', async () => {
+    const config = createConfig([
+      {
+        id: 'snyk',
+        type: 'snyk',
+        enabled: true,
+        token_ref: 'snyk',
+        options: { organization: 'org-123' },
+      },
+    ]);
+    const { observedSources, service } = createObservedSyncService({
+      db,
+      config,
+      snykProjects: [{ id: 'snyk-proj-api', target: { url: 'https://github.com/acme/api' } }],
+    });
+
+    const result = await service.syncSources();
+
+    expect(result).toMatchObject({ sources_total: 1, sources_synced: 0, sources_skipped: 1 });
+    expectObservedSourceIds(observedSources, []);
+    expectSkippedSource(
+      result,
+      'snyk',
+      'Snyk source snyk had no project match for acme/web.',
+    );
+  });
+
+  it('syncs account-scoped sources narrowed to the current project and skips Snyk when no project matches', async () => {
     const config = createConfig([
       {
         id: 'github-code-scanning-acme-web',
@@ -539,23 +604,11 @@ describe('SourceSyncService', () => {
 
     const result = await service.syncSources();
 
-    expect(result).toMatchObject({ sources_total: 4, sources_synced: 1, sources_skipped: 3 });
-    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web']);
-    expectSkippedSource(
-      result,
-      'socket',
-      "socket source socket cannot be scoped to the current project, so it is not synced by default. Syncing it would pull every organization or deployment the token can access.",
-    );
-    expectSkippedSource(
-      result,
-      'snyk',
-      "snyk source snyk cannot be scoped to the current project, so it is not synced by default. Syncing it would pull every organization or deployment the token can access.",
-    );
-    expectSkippedSource(
-      result,
-      'semgrep',
-      "semgrep source semgrep cannot be scoped to the current project, so it is not synced by default. Syncing it would pull every organization or deployment the token can access.",
-    );
+    expect(result).toMatchObject({ sources_total: 4, sources_synced: 3, sources_skipped: 1 });
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web', 'socket', 'semgrep']);
+    expect(observedSources.find((source) => source.id === 'socket')?.options.repository_full_name).toBe('acme/web');
+    expect(observedSources.find((source) => source.id === 'semgrep')?.options.repository_full_name).toBe('acme/web');
+    expectSkippedSource(result, 'snyk', 'Snyk source snyk had no project match for acme/web.');
   });
 
   it('infers a SonarCloud project key from a unique exact current repository match', async () => {
@@ -851,6 +904,15 @@ function expectSkippedSource(
   });
 }
 
+function expectScopedSourceNeedsRepositorySkip(
+  result: Awaited<ReturnType<SourceSyncService['syncSources']>>,
+  sourceId: string
+): void {
+  const entry = result.results.find((r) => r.source_id === sourceId);
+  expect(entry).toMatchObject({ status: 'skipped' });
+  expect(entry?.error_message).toContain('needs a current GitHub repository');
+}
+
 function gitHubSources(): SourceConfig[] {
   return [
     {
@@ -866,6 +928,39 @@ function gitHubSources(): SourceConfig[] {
       enabled: true,
       token_ref: 'github-code-scanning',
       options: { owner: 'acme', repo: 'web' },
+    },
+  ];
+}
+
+function scopedSources(): SourceConfig[] {
+  return [
+    {
+      id: 'github-code-scanning-acme-web',
+      type: 'github',
+      enabled: true,
+      token_ref: 'github-code-scanning',
+      options: { owner: 'acme', repo: 'web' },
+    },
+    {
+      id: 'socket',
+      type: 'socket',
+      enabled: true,
+      token_ref: 'socket',
+      options: { organization: 'acme' },
+    },
+    {
+      id: 'snyk',
+      type: 'snyk',
+      enabled: true,
+      token_ref: 'snyk',
+      options: { organization: 'org-123' },
+    },
+    {
+      id: 'semgrep',
+      type: 'semgrep',
+      enabled: true,
+      token_ref: 'semgrep',
+      options: { deployment: 'acme' },
     },
   ];
 }
@@ -919,11 +1014,13 @@ function sonarCloudSource(overrides: Partial<SourceConfig> = {}): SourceConfig {
 function createObservedSyncService(options: {
   db: Database.Database;
   config: Config;
-  repository?: { owner: string; repo: string };
+  repository?: { owner: string; repo: string } | null;
   projects?: Array<{ key: string; name: string; project?: string }> | Array<Array<{ key: string; name: string; project?: string }>>;
+  snykProjects?: Array<{ id: string; target?: { url?: string } }>;
   discoveryFailureMessage?: string;
 }): { observedSources: SourceConfig[]; service: SourceSyncService } {
   const observedSources: SourceConfig[] = [];
+  const currentRepository = options.repository === undefined ? { owner: 'acme', repo: 'web' } : options.repository ?? undefined;
   return {
     observedSources,
     service: new SourceSyncService({
@@ -931,13 +1028,14 @@ function createObservedSyncService(options: {
       config: options.config,
       databasePath: ':memory:',
       credentialStore: new StaticCredentialStore('token-123') as unknown as CredentialStore,
-      detectCurrentGitHubRepository: async () => options.repository ?? { owner: 'acme', repo: 'web' },
+      detectCurrentGitHubRepository: async () => currentRepository,
       createSonarCloudClient: () => {
         if (options.discoveryFailureMessage) {
           throw new Error(options.discoveryFailureMessage);
         }
         return new StaticSonarCloudProjectClient(options.projects ?? []);
       },
+      createSnykClient: () => new StaticSnykProjectClient(options.snykProjects ?? []),
       createAdapter: async (source) => {
         observedSources.push(source);
         return new StaticAdapter([createFinding({ id: `fb-${source.id}`, fingerprint: `${source.id}-fingerprint` })]);
@@ -1028,6 +1126,38 @@ class StaticSonarCloudProjectClient {
       projects,
       total: this.pages.reduce((sum, current) => sum + current.length, 0),
       hasMore: page < this.pages.length,
+    };
+  }
+}
+
+class StaticSnykProjectClient {
+  constructor(private readonly projects: Array<{ id: string; target?: { url?: string } }>) {}
+
+  async listProjects(
+    _orgId: string,
+    _options?: { cursor?: string; limit?: number }
+  ): Promise<{
+    projects: Array<{
+      id: string;
+      attributes: Record<string, unknown>;
+      relationships: { target: { data: { attributes: { url?: string } } } };
+    }>;
+    nextCursor?: string;
+  }> {
+    return {
+      projects: this.projects.map((project) => ({
+        id: project.id,
+        attributes: {},
+        relationships: {
+          target: {
+            data: {
+              attributes: {
+                url: project.target?.url,
+              },
+            },
+          },
+        },
+      })),
     };
   }
 }

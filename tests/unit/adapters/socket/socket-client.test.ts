@@ -56,6 +56,21 @@ describe('SocketClient', () => {
     );
   });
 
+  it('filters alerts by repository full name when scoped to the current project', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ items: [], endCursor: null, totalCount: 0 })
+    );
+    const client = new SocketClient({ token: 'token-123', apiBaseUrl: 'https://api.socket.dev/v0' });
+
+    await expect(
+      client.listAlerts('acme', { repositoryFullName: 'acme/web' })
+    ).resolves.toEqual({ alerts: [], endCursor: null, totalCount: 0 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.socket.dev/v0/orgs/acme/alerts?per_page=1000&filters.repoFullName=acme%2Fweb',
+      expect.any(Object)
+    );
+  });
+
   it('converts a slug-keyed organizations object into an array', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({

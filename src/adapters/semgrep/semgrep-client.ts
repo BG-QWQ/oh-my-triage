@@ -51,7 +51,7 @@ export class SemgrepClient {
   /** List Semgrep findings for a deployment with page-based pagination. */
   async listFindings(
     deploymentSlug: string,
-    options: { page?: number; pageSize?: number; issueType?: 'sast' | 'sca' } = {}
+    options: { page?: number; pageSize?: number; issueType?: 'sast' | 'sca'; repos?: string[] } = {}
   ): Promise<{ findings: SemgrepFinding[]; hasMore: boolean }> {
     try {
       const page = options.page ?? 0;
@@ -59,6 +59,9 @@ export class SemgrepClient {
       const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
       if (options.issueType) {
         params.set('issue_type', options.issueType);
+      }
+      if (options.repos && options.repos.length > 0) {
+        params.set('repos', options.repos.join(','));
       }
       const response = await this.request(`/api/v1/deployments/${encodeURIComponent(deploymentSlug)}/findings?${params.toString()}`);
       const body = (await response.json()) as unknown;

@@ -56,6 +56,43 @@ describe('SnykAdapter', () => {
       code: 'CONFIG_INVALID',
     });
   });
+
+  it('iterates through project IDs when scoped to the current repository', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [issue('issue-web')],
+          links: {},
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: [issue('issue-api')],
+          links: {},
+        })
+      );
+
+    const adapter = new SnykAdapter({
+      token: 'token-123',
+      orgId: 'org-123',
+      projectIds: ['project-web', 'project-api'],
+    });
+
+    const firstPage = await adapter.fetchFindings({});
+    expect(firstPage.findings).toHaveLength(1);
+    expect(firstPage.findings[0]).toMatchObject({ source: { original_id: 'issue-web' } });
+    expect(firstPage.has_more).toBe(true);
+    expect(firstPage.next_cursor).toBe('1');
+
+    const secondPage = await adapter.fetchFindings({ cursor: firstPage.next_cursor });
+    expect(secondPage.findings).toHaveLength(1);
+    expect(secondPage.findings[0]).toMatchObject({ source: { original_id: 'issue-api' } });
+    expect(secondPage.has_more).toBe(false);
+
+    const calls = vi.mocked(fetch).mock.calls;
+    expect(calls[0][0]).toContain('scan_item.id=project-web');
+    expect(calls[1][0]).toContain('scan_item.id=project-api');
+  });
 });
 
 describe('mapSnykIssueToFinding', () => {

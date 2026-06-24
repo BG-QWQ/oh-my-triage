@@ -9,6 +9,7 @@ import { SocketAdapter } from '../adapters/socket/socket-adapter.js';
 import { SnykAdapter } from '../adapters/snyk/snyk-adapter.js';
 import { SemgrepAdapter } from '../adapters/semgrep/semgrep-adapter.js';
 import { SonarCloudAdapter } from '../adapters/sonarcloud/sonarcloud-adapter.js';
+import { SnykClient } from '../adapters/snyk/snyk-client.js';
 import { SonarCloudClient } from '../adapters/sonarcloud/sonarcloud-client.js';
 import type { SonarCloudProject } from '../adapters/sonarcloud/sonarcloud-schemas.js';
 import { CredentialStore } from '../config/credential-store.js';
@@ -29,6 +30,7 @@ type GitHubRepositoryIdentity = {
 };
 
 type SonarCloudProjectListClient = Pick<SonarCloudClient, 'listProjects'>;
+type SnykProjectListClient = Pick<SnykClient, 'listProjects'>;
 
 type SourceSelection = {
   sources: SourceConfig[];
@@ -89,6 +91,7 @@ export type SourceSyncServiceOptions = {
   credentialStore?: CredentialStore;
   createAdapter?: (source: SourceConfig, token?: string) => Promise<BaseAdapter>;
   createSonarCloudClient?: (source: SourceConfig, token: string) => SonarCloudProjectListClient;
+  createSnykClient?: (source: SourceConfig, token: string) => SnykProjectListClient;
   detectCurrentGitHubRepository?: () => Promise<GitHubRepositoryIdentity | undefined>;
 };
 
@@ -99,6 +102,7 @@ export class SourceSyncService {
   private readonly credentialStore: CredentialStore;
   private readonly createAdapter: (source: SourceConfig, token?: string) => Promise<BaseAdapter>;
   private readonly createSonarCloudClient: (source: SourceConfig, token: string) => SonarCloudProjectListClient;
+  private readonly createSnykClient: (source: SourceConfig, token: string) => SnykProjectListClient;
   private readonly detectCurrentGitHubRepository: () => Promise<GitHubRepositoryIdentity | undefined>;
 
   constructor(private readonly options: SourceSyncServiceOptions) {
@@ -112,6 +116,13 @@ export class SourceSyncService {
         new SonarCloudClient({
           token,
           organization: readStringOption(source, 'organization'),
+          apiBaseUrl: source.api_url,
+        }));
+    this.createSnykClient =
+      options.createSnykClient ??
+      ((source, token) =>
+        new SnykClient({
+          token,
           apiBaseUrl: source.api_url,
         }));
     this.detectCurrentGitHubRepository = options.detectCurrentGitHubRepository ?? detectCurrentGitHubRepository;
@@ -146,7 +157,7 @@ export class SourceSyncService {
         return { sources: enabled, skipped: [] };
       }
 
-      if (enabled.length <= 1 && enabled.every((source) => source.type !== 'sonarcloud' || hasEffectiveProjectKey(source, options.projectKeys))) {
+      if (enabled.length <= 1 && enabled.every((source) => canSyncWithoutCurrentRepository(source, options.projectKeys))) {
         return { sources: enabled, skipped: [] };
       }
 
@@ -211,10 +222,32 @@ export class SourceSyncService {
         continue;
       }
 
-      // SARIF, Socket.dev, Snyk, and Semgrep cannot be scoped to the current
-      // project from the local filesystem. Syncing them by default would pull
-      // every configured file or every organization/deployment, so they are
-      // skipped unless the caller explicitly requests them.
+      if (source.type === 'socket' || source.type === 'semgrep') {
+        if (repository === undefined) {
+          skipped.push(createScopedSourceNeedsRepositorySkip(source));
+          continue;
+        }
+        selected.push(scopedSource(source, repository));
+        continue;
+      }
+
+      if (source.type === 'snyk') {
+        if (repository === undefined) {
+          skipped.push(createScopedSourceNeedsRepositorySkip(source));
+          continue;
+        }
+
+        const inferred = await this.inferSnykProjectSource(source, repository, maxPages);
+        if ('source' in inferred) {
+          selected.push(inferred.source);
+        } else {
+          skipped.push(inferred.skipped);
+        }
+        continue;
+      }
+
+      // SARIF paths cannot be inferred from the current repository, so SARIF
+      // sources are skipped unless the caller explicitly requests them.
       skipped.push(createSkippedSourceResult(source, createDefaultScopeSkipReason(source)));
     }
 
@@ -299,6 +332,75 @@ export class SourceSyncService {
             `Pass the confirmed key as project_keys[${source.id}] to omt_sync_sources or save it as this source project_key.`,
           ],
         }),
+      };
+    } catch (error: unknown) {
+      const message = redactSecrets(error instanceof Error ? error.message : String(error));
+      return {
+        skipped: createSkippedSourceResult(source, {
+          message,
+          nextSteps: this.nextStepsForError(source, error),
+        }),
+      };
+    }
+  }
+
+  private async inferSnykProjectSource(
+    source: SourceConfig,
+    repository: GitHubRepositoryIdentity,
+    maxPages: number
+  ): Promise<{ source: SourceConfig } | { skipped: SourceSyncResult }> {
+    const organization = readStringOption(source, 'organization') ?? readStringOption(source, 'org_id');
+    if (!organization) {
+      return {
+        skipped: createSkippedSourceResult(source, {
+          message: `Snyk source ${source.id} needs an organization before oh-my-triage can infer project IDs.`,
+          nextSteps: [
+            `Configure options.organization or options.org_id for ${source.id}.`,
+            `Alternatively pass project_ids directly to omt_sync_sources when syncing outside a GitHub repository.`,
+          ],
+        }),
+      };
+    }
+
+    try {
+      const token = await this.tokenForSource(source);
+      if (!token) {
+        throw new OMTError({
+          code: ErrorCodes.TOKEN_MISSING,
+          message: `Token is missing for source ${source.id}.`,
+          nextSteps: [`Run oh-my-triage config set-token ${source.id} or rerun oh-my-triage setup.`],
+          retryable: false,
+        });
+      }
+
+      const projectList = await listSnykProjects(organization, this.createSnykClient(source, token), maxPages);
+      if (projectList.truncated) {
+        return {
+          skipped: createSkippedSourceResult(source, {
+            message: `Snyk source ${source.id} project discovery reached max_pages before oh-my-triage could prove project matches.`,
+            nextSteps: [
+              'Rerun omt_sync_sources with a higher max_pages value before relying on automatic Snyk project inference.',
+              `Alternatively call omt_list_source_projects, confirm the intended project IDs, and pass them to omt_sync_sources.`,
+            ],
+          }),
+        };
+      }
+
+      const projectIds = findSnykProjectIdsForRepository(projectList.projects, repository);
+      if (projectIds.length === 0) {
+        return {
+          skipped: createSkippedSourceResult(source, {
+            message: `Snyk source ${source.id} had no project match for ${repository.owner}/${repository.repo}.`,
+            nextSteps: [
+              `Call omt_list_source_projects for ${source.id} to inspect visible Snyk projects.`,
+              `Pass the confirmed project IDs to omt_sync_sources or save them as this source options.project_ids.`,
+            ],
+          }),
+        };
+      }
+
+      return {
+        source: scopedSource(source, repository, projectIds),
       };
     } catch (error: unknown) {
       const message = redactSecrets(error instanceof Error ? error.message : String(error));
@@ -441,6 +543,7 @@ export class SourceSyncService {
         return new SocketAdapter({
           token,
           orgSlug,
+          repositoryFullName: readStringOption(source, 'repository_full_name'),
           apiBaseUrl: source.api_url,
         });
       }
@@ -460,6 +563,7 @@ export class SourceSyncService {
         return new SnykAdapter({
           token,
           orgId,
+          projectIds: readStringArrayOption(source, 'project_ids'),
           apiBaseUrl: source.api_url,
         });
       }
@@ -482,6 +586,7 @@ export class SourceSyncService {
         return new SemgrepAdapter({
           token,
           deploymentSlug,
+          repositoryFullName: readStringOption(source, 'repository_full_name'),
           apiBaseUrl: source.api_url,
         });
       }
@@ -605,6 +710,29 @@ function hasEffectiveProjectKey(source: SourceConfig, projectKeys?: Record<strin
   return Boolean(projectKeys?.[source.id]?.trim());
 }
 
+/** Determine whether a single enabled source can sync without current-repo inference.
+ *
+ * GitHub and SARIF carry their own scope (owner/repo or file path). SonarCloud
+ * can sync when a project key is already known. Account-scoped sources such as
+ * Socket.dev, Snyk, and Semgrep need the current GitHub repository to narrow
+ * the sync, so they are never bypassed.
+ */
+function canSyncWithoutCurrentRepository(source: SourceConfig, projectKeys?: Record<string, string>): boolean {
+  if (source.type === 'github' || source.type === 'sarif') {
+    return true;
+  }
+
+  if (source.type === 'sonarcloud') {
+    return hasEffectiveProjectKey(source, projectKeys);
+  }
+
+  if (source.type === 'socket' || source.type === 'snyk' || source.type === 'semgrep') {
+    return false;
+  }
+
+  return true;
+}
+
 function matchesGitHubRepository(source: SourceConfig, repository: GitHubRepositoryIdentity): boolean {
   return readStringOption(source, 'owner')?.toLowerCase() === repository.owner.toLowerCase()
     && readStringOption(source, 'repo')?.toLowerCase() === repository.repo.toLowerCase();
@@ -666,6 +794,83 @@ function normalizeProjectIdentity(value: string): string {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+/** Build a source copy scoped to the current repository for default sync. */
+function scopedSource(
+  source: SourceConfig,
+  repository: GitHubRepositoryIdentity,
+  projectIds?: string[]
+): SourceConfig {
+  const repositoryFullName = `${repository.owner}/${repository.repo}`;
+  return {
+    ...source,
+    options: {
+      ...source.options,
+      repository_full_name: repositoryFullName,
+      ...(projectIds && projectIds.length > 0 ? { project_ids: projectIds } : {}),
+    },
+  };
+}
+
+/** Build a skip result for account-scoped sources that need a current repository. */
+function createScopedSourceNeedsRepositorySkip(source: SourceConfig): SourceSyncResult {
+  return createSkippedSourceResult(source, {
+    message: `${source.type} source ${source.id} needs a current GitHub repository before oh-my-triage can scope it to a project.`,
+    nextSteps: [
+      'Run sync from a GitHub repository whose origin remote matches the workspace under review.',
+      `Call omt_sync_sources with source_ids: ['${source.id}'] or all_sources: true to sync without a current repository.`,
+    ],
+  });
+}
+
+async function listSnykProjects(
+  orgId: string,
+  client: SnykProjectListClient,
+  maxPages: number
+): Promise<{ projects: Array<{ id: string; targetUrl?: string }>; truncated: boolean }> {
+  const projects: Array<{ id: string; targetUrl?: string }> = [];
+  let cursor: string | undefined;
+  let pagesFetched = 0;
+  let hasMore = false;
+
+  do {
+    const result = await client.listProjects(orgId, { cursor });
+    projects.push(...result.projects.map((project) => ({ id: project.id, targetUrl: extractSnykProjectTargetUrl(project) })));
+    cursor = result.nextCursor;
+    hasMore = cursor !== undefined;
+    pagesFetched += 1;
+  } while (hasMore && pagesFetched < maxPages);
+
+  return { projects, truncated: hasMore };
+}
+
+function extractSnykProjectTargetUrl(project: { id: string; targetUrl?: string } | { relationships?: { target?: { data?: { attributes?: { url?: string } } } } }): string | undefined {
+  if ('targetUrl' in project && project.targetUrl) {
+    return project.targetUrl;
+  }
+  const relationships = (project as { relationships?: unknown }).relationships;
+  if (relationships && typeof relationships === 'object' && relationships !== null) {
+    const target = (relationships as { target?: { data?: { attributes?: { url?: string } } } }).target;
+    return target?.data?.attributes?.url;
+  }
+  return undefined;
+}
+
+function findSnykProjectIdsForRepository(
+  projects: Array<{ id: string; targetUrl?: string }>,
+  repository: GitHubRepositoryIdentity
+): string[] {
+  const fullName = `${repository.owner}/${repository.repo}`.toLowerCase();
+  return projects
+    .filter((project) => {
+      if (!project.targetUrl) {
+        return false;
+      }
+      const normalized = project.targetUrl.toLowerCase().replace(/\.git$/, '');
+      return normalized.includes(fullName) || normalized.endsWith(fullName.split('/')[1] ?? '');
+    })
+    .map((project) => project.id);
 }
 
 /** Build a skip reason for sources that cannot be auto-scoped to the current project. */
@@ -749,12 +954,28 @@ function buildSyncScopeKey(source: SourceConfig): string {
       parts.push(`${key}:${value}`);
     }
   }
+  const repositoryFullName = readStringOption(source, 'repository_full_name');
+  if (repositoryFullName) {
+    parts.push(`repo:${repositoryFullName}`);
+  }
+  const projectIds = source.options.project_ids;
+  if (Array.isArray(projectIds) && projectIds.length > 0) {
+    parts.push(`project_ids:${projectIds.join(',')}`);
+  }
   return parts.join('|');
 }
 
 function readStringOption(source: SourceConfig, key: string): string | undefined {
   const value = source.options[key];
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function readStringArrayOption(source: SourceConfig, key: string): string[] | undefined {
+  const value = source.options[key];
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  }
+  return undefined;
 }
 
 function applySyncOverrides(source: SourceConfig, options: SyncSourcesOptions): SourceConfig {

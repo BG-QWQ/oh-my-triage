@@ -49,6 +49,25 @@ describe('SemgrepAdapter', () => {
       code: 'CONFIG_INVALID',
     });
   });
+
+  it('passes repository scope through to the client', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ sastFindings: { findings: [finding('finding-1')] }, findings: [] }));
+
+    const adapter = new SemgrepAdapter({
+      token: 'token-123',
+      deploymentSlug: 'acme',
+      repositoryFullName: 'acme/web',
+    });
+    const result = await adapter.fetchFindings({});
+
+    expect(result.findings).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('repos=acme%2Fweb'),
+      expect.any(Object)
+    );
+  });
 });
 
 describe('mapSemgrepFindingToFinding', () => {

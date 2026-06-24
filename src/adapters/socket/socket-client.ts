@@ -57,12 +57,15 @@ export class SocketClient {
   /** List alerts for an organization with cursor-based pagination. */
   async listAlerts(
     orgSlug: string,
-    options: { startAfterCursor?: string; perPage?: number } = {}
+    options: { startAfterCursor?: string; perPage?: number; repositoryFullName?: string } = {}
   ): Promise<{ alerts: SocketAlert[]; endCursor: string | null; totalCount: number }> {
     try {
       const params = new URLSearchParams({ per_page: String(options.perPage ?? DEFAULT_PER_PAGE) });
       if (options.startAfterCursor) {
         params.set('startAfterCursor', options.startAfterCursor);
+      }
+      if (options.repositoryFullName) {
+        params.set('filters.repoFullName', options.repositoryFullName);
       }
       const response = await this.request(`/orgs/${encodeURIComponent(orgSlug)}/alerts?${params.toString()}`);
       const body = await response.json() as unknown;
