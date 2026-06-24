@@ -45,6 +45,24 @@ describe('SocketAdapter', () => {
     expect(secondPage.has_more).toBe(false);
   });
 
+  it('normalizes live camelCase alert fields before mapping findings', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse({ items: [liveAlert('alert-live-1')], endCursor: null })
+    );
+
+    const adapter = new SocketAdapter({ token: 'token-123', orgSlug: 'acme' });
+    const result = await adapter.fetchFindings({});
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]).toMatchObject({
+      source: { original_id: 'alert-live-1' },
+      raw_severity: 'high',
+      location: { file_path: 'acme/web:main' },
+      first_seen_at: '2024-01-01T00:00:00Z',
+      last_seen_at: '2024-01-02T00:00:00Z',
+    });
+  });
+
   it('requires org slug to fetch findings', async () => {
     const adapter = new SocketAdapter({ token: 'token-123' });
     await expect(adapter.fetchFindings({})).rejects.toMatchObject({
@@ -98,8 +116,37 @@ function alert(id: string): SocketAlert {
     artifact_name: 'lodash',
     repo_full_name: 'acme/app',
     branch: 'main',
+    organization: undefined,
+    state: undefined,
+    cve_id: undefined,
+    cwe_id: undefined,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-02T00:00:00Z',
+  };
+}
+
+function liveAlert(id: string): unknown {
+  return {
+    id,
+    key: `npm:lodash:${id}`,
+    severity: 'high',
+    type: 'vulnerability',
+    title: 'Prototype pollution in lodash',
+    description: 'A vulnerable package is reachable from the project.',
+    status: 'open',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-02T00:00:00Z',
+    vulnerability: {
+      cveId: 'CVE-2024-0001',
+      cweIds: ['CWE-1321'],
+    },
+    locations: [
+      {
+        repository: { fullName: 'acme/web', slug: 'web' },
+        branch: { name: 'main' },
+        artifact: { name: 'lodash' },
+      },
+    ],
   };
 }
 
