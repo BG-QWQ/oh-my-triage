@@ -196,21 +196,26 @@ export class SourceSyncService {
         continue;
       }
 
-      if (source.type !== 'sonarcloud') {
+      if (source.type === 'sonarcloud') {
+        if (hasEffectiveProjectKey(source, projectKeys)) {
+          selected.push(source);
+          continue;
+        }
+
+        const inferred = await this.inferSonarCloudProjectSource(source, repository, maxPages);
+        if ('source' in inferred) {
+          selected.push(inferred.source);
+        } else {
+          skipped.push(inferred.skipped);
+        }
         continue;
       }
 
-      if (hasEffectiveProjectKey(source, projectKeys)) {
-        selected.push(source);
-        continue;
-      }
-
-      const inferred = await this.inferSonarCloudProjectSource(source, repository, maxPages);
-      if ('source' in inferred) {
-        selected.push(inferred.source);
-      } else {
-        skipped.push(inferred.skipped);
-      }
+      // SARIF, Socket.dev, Snyk, and Semgrep cannot be scoped to the current
+      // project from the local filesystem. Syncing them by default would pull
+      // every configured file or every organization/deployment, so they are
+      // skipped unless the caller explicitly requests them.
+      skipped.push(createSkippedSourceResult(source, createDefaultScopeSkipReason(source)));
     }
 
     return { sources: selected, skipped };
@@ -661,6 +666,30 @@ function normalizeProjectIdentity(value: string): string {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+/** Build a skip reason for sources that cannot be auto-scoped to the current project. */
+function createDefaultScopeSkipReason(source: SourceConfig): { message: string; nextSteps: string[] } {
+  const typeLabel = source.type === 'sarif' ? 'SARIF' : source.type;
+  const baseMessage = `${typeLabel} source ${source.id} cannot be scoped to the current project, so it is not synced by default.`;
+
+  if (source.type === 'sarif') {
+    return {
+      message: `${baseMessage} SARIF paths cannot be inferred from the current repository.`,
+      nextSteps: [
+        `Call omt_sync_sources with source_ids: ['${source.id}'] to sync this SARIF source.`,
+        'Call omt_sync_sources with all_sources: true to sync every configured source.',
+      ],
+    };
+  }
+
+  return {
+    message: `${baseMessage} Syncing it would pull every organization or deployment the token can access.`,
+    nextSteps: [
+      `Call omt_sync_sources with source_ids: ['${source.id}'] to sync this source only.`,
+      'Call omt_sync_sources with all_sources: true to sync every configured source.',
+    ],
+  };
 }
 
 function formatProjectCandidates(projects: SonarCloudProject[]): string {

@@ -491,9 +491,71 @@ describe('SourceSyncService', () => {
 
     const result = await service.syncSources();
 
-    expect(result).toMatchObject({ sources_total: 3, sources_synced: 2, sources_skipped: 1 });
+    expect(result).toMatchObject({ sources_total: 4, sources_synced: 2, sources_skipped: 2 });
     expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web', 'sonarcloud-web']);
     expectSkippedSource(result, 'sonarcloud-unconfigured', 'SonarCloud source sonarcloud-unconfigured had no exact project match for acme/web.');
+    expectSkippedSource(
+      result,
+      'sarif-web',
+      "SARIF source sarif-web cannot be scoped to the current project, so it is not synced by default. SARIF paths cannot be inferred from the current repository.",
+    );
+  });
+
+  it('explicitly skips account-scoped sources that cannot be narrowed to the current project', async () => {
+    const config = createConfig([
+      {
+        id: 'github-code-scanning-acme-web',
+        type: 'github',
+        enabled: true,
+        token_ref: 'github-code-scanning',
+        options: { owner: 'acme', repo: 'web' },
+      },
+      {
+        id: 'socket',
+        type: 'socket',
+        enabled: true,
+        token_ref: 'socket',
+        options: { organization: 'acme' },
+      },
+      {
+        id: 'snyk',
+        type: 'snyk',
+        enabled: true,
+        token_ref: 'snyk',
+        options: { organization: 'acme' },
+      },
+      {
+        id: 'semgrep',
+        type: 'semgrep',
+        enabled: true,
+        token_ref: 'semgrep',
+        options: { deployment: 'acme' },
+      },
+    ]);
+    const { observedSources, service } = createObservedSyncService({
+      db,
+      config,
+    });
+
+    const result = await service.syncSources();
+
+    expect(result).toMatchObject({ sources_total: 4, sources_synced: 1, sources_skipped: 3 });
+    expectObservedSourceIds(observedSources, ['github-code-scanning-acme-web']);
+    expectSkippedSource(
+      result,
+      'socket',
+      "socket source socket cannot be scoped to the current project, so it is not synced by default. Syncing it would pull every organization or deployment the token can access.",
+    );
+    expectSkippedSource(
+      result,
+      'snyk',
+      "snyk source snyk cannot be scoped to the current project, so it is not synced by default. Syncing it would pull every organization or deployment the token can access.",
+    );
+    expectSkippedSource(
+      result,
+      'semgrep',
+      "semgrep source semgrep cannot be scoped to the current project, so it is not synced by default. Syncing it would pull every organization or deployment the token can access.",
+    );
   });
 
   it('infers a SonarCloud project key from a unique exact current repository match', async () => {
@@ -692,12 +754,16 @@ describe('SourceSyncService', () => {
 
     const result = await service.syncSources();
 
-    expect(result).toMatchObject({ sources_total: 1, sources_synced: 0, sources_skipped: 1 });
-    expect(result.results[0]).toMatchObject({
-      source_id: 'sonarcloud-unconfigured',
+    expect(result).toMatchObject({ sources_total: 2, sources_synced: 0, sources_skipped: 2 });
+    expect(result.results.find((entry) => entry.source_id === 'sonarcloud-unconfigured')).toMatchObject({
       status: 'skipped',
       error_message: 'SonarCloud source sonarcloud-unconfigured had no exact project match for acme/mobile.',
     });
+    expectSkippedSource(
+      result,
+      'sarif-web',
+      "SARIF source sarif-web cannot be scoped to the current project, so it is not synced by default. SARIF paths cannot be inferred from the current repository.",
+    );
   });
 });
 
