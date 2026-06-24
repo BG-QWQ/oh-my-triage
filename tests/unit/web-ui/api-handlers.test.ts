@@ -202,7 +202,7 @@ describe('handleApiRequest', () => {
 
   it('tests Socket.dev connection through the setup API', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      jsonResponse({ organizations: { '363089': { id: '363089', name: 'Acme', slug: 'acme' } } })
+      jsonResponse({ organizations: { '123456': { id: '123456', name: 'Acme', slug: 'acme' } } })
     );
     const response = new StubResponse();
     const request = createJsonRequest('/api/setup/test-connection', 'POST', {
