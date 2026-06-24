@@ -66,7 +66,7 @@ describe('SocketAdapter', () => {
 
     expect(result.findings).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('filters.repoFullName=acme%2Fweb'),
+      expect.stringContaining('filters.repoFullName=acme/web'),
       expect.any(Object)
     );
   });

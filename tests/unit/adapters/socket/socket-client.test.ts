@@ -66,7 +66,22 @@ describe('SocketClient', () => {
       client.listAlerts('acme', { repositoryFullName: 'acme/web' })
     ).resolves.toEqual({ alerts: [], endCursor: null, totalCount: 0 });
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.socket.dev/v0/orgs/acme/alerts?per_page=1000&filters.repoFullName=acme%2Fweb',
+      'https://api.socket.dev/v0/orgs/acme/alerts?per_page=1000&filters.repoFullName=acme/web',
+      expect.any(Object)
+    );
+  });
+
+  it('keeps repo filter delimiters literal while encoding unsafe characters', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ items: [], endCursor: null })
+    );
+    const client = new SocketClient({ token: 'token-123', apiBaseUrl: 'https://api.socket.dev/v0' });
+
+    await expect(
+      client.listAlerts('acme', { repositoryFullName: 'acme/web app,acme/api&edge' })
+    ).resolves.toEqual({ alerts: [], endCursor: null, totalCount: 0 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.socket.dev/v0/orgs/acme/alerts?per_page=1000&filters.repoFullName=acme/web%20app,acme/api%26edge',
       expect.any(Object)
     );
   });

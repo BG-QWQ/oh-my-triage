@@ -64,10 +64,11 @@ export class SocketClient {
       if (options.startAfterCursor) {
         params.set('startAfterCursor', options.startAfterCursor);
       }
+      let queryString = params.toString();
       if (options.repositoryFullName) {
-        params.set('filters.repoFullName', options.repositoryFullName);
+        queryString += `&filters.repoFullName=${encodeSocketRepoFilter(options.repositoryFullName)}`;
       }
-      const response = await this.request(`/orgs/${encodeURIComponent(orgSlug)}/alerts?${params.toString()}`);
+      const response = await this.request(`/orgs/${encodeURIComponent(orgSlug)}/alerts?${queryString}`);
       const body = await response.json() as unknown;
       const parsed = SocketAlertsResponseSchema.parse(body);
       return {
@@ -108,6 +109,20 @@ export class SocketClient {
 
     return response;
   }
+}
+
+/** Encode a Socket.dev repoFullName filter value.
+ *
+ * Socket.dev documents `filters.repoFullName` as a comma-separated list of
+ * `owner/repo` values with literal `/` and `,` delimiters. This helper keeps
+ * those delimiters literal while still percent-encoding other unsafe characters
+ * so the query string remains valid.
+ */
+function encodeSocketRepoFilter(value: string): string {
+  return value
+    .split(',')
+    .map((repo) => repo.split('/').map(encodeURIComponent).join('/'))
+    .join(',');
 }
 
 async function safeResponseText(response: Response): Promise<string | undefined> {
