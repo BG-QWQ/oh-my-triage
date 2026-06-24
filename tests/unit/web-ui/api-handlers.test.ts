@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Config } from '@/config/validation.js';
+import { OMTError, ErrorCodes } from '@/core/errors.js';
 import { handleApiRequest } from '@/web-ui/api-handlers.js';
 
 type HeaderValue = string | number | string[];
@@ -9,6 +10,7 @@ type HeaderValue = string | number | string[];
 const configState = vi.hoisted(() => ({
   savedConfig: undefined as Config | undefined,
   loadedConfig: undefined as Config | undefined,
+  loadError: undefined as Error | undefined,
 }));
 
 const credentialState = vi.hoisted(() => ({
@@ -16,10 +18,15 @@ const credentialState = vi.hoisted(() => ({
 }));
 
 vi.mock('@/config/config.js', () => ({
-  loadOrCreateConfig: vi.fn(async () => ({
-    config: configState.loadedConfig ?? baseConfig(),
-    filepath: 'oh-my-triage.config.json',
-  })),
+  loadOrCreateConfig: vi.fn(async () => {
+    if (configState.loadError) {
+      throw configState.loadError;
+    }
+    return {
+      config: configState.loadedConfig ?? baseConfig(),
+      filepath: 'oh-my-triage.config.json',
+    };
+  }),
   saveConfig: vi.fn(async (config: Config) => {
     configState.savedConfig = config;
     return 'oh-my-triage.config.json';
@@ -43,6 +50,7 @@ describe('handleApiRequest', () => {
   beforeEach(() => {
     configState.savedConfig = undefined;
     configState.loadedConfig = undefined;
+    configState.loadError = undefined;
     credentialState.setTokenCalls = [];
   });
 
@@ -59,6 +67,24 @@ describe('handleApiRequest', () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain('"status":"ok"');
     expect(response.body).toContain('"version":"0.1.2"');
+  });
+
+  it('returns structured CONFIG_INVALID when the config file is corrupt', async () => {
+    configState.loadError = new OMTError({
+      code: ErrorCodes.CONFIG_INVALID,
+      message: 'oh-my-triage configuration is invalid.',
+      nextSteps: ['Run `oh-my-triage init --force` to replace the invalid configuration.'],
+    });
+    const response = new StubResponse();
+
+    const handled = await handleApiRequest(createRequest('/api/setup/status', 'GET'), response as unknown as ServerResponse);
+
+    expect(handled).toBe(true);
+    expect(response.statusCode).toBe(500);
+    const body = JSON.parse(response.body);
+    expect(body.code).toBe('CONFIG_INVALID');
+    expect(body.error).toContain('invalid');
+    expect(body.next_steps).toEqual(expect.arrayContaining([expect.stringContaining('--force')]));
   });
 
   it('returns false for non-API requests', async () => {

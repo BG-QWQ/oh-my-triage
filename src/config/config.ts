@@ -1,5 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { cosmiconfig } from 'cosmiconfig';
 import { OMTError, ErrorCodes } from '../core/errors.js';
 import { logger } from '../utils/logger.js';
@@ -14,6 +13,7 @@ import {
 } from './defaults.js';
 import { migrateLegacyConfig } from './migration.js';
 import { ConfigSchema, type Config } from './validation.js';
+import { readValidBackup, writeFileAtomically } from './atomic-file.js';
 
 const searchPlaces = [
   'package.json',
@@ -65,9 +65,54 @@ export function resolveDatabasePath(optionsDb?: string, configDb?: string): stri
 
 /** Load and validate oh-my-triage configuration from an explicit path or cosmiconfig search. */
 export async function loadConfig(configPath?: string): Promise<LoadedConfig> {
+  const defaultPath = getDefaultConfigPath();
+  const explicitPath = configPath ? resolve(configPath) : undefined;
+
+  try {
+    return await tryLoadValidConfig(explicitPath);
+  } catch (error: unknown) {
+    const isInvalid =
+      error instanceof OMTError &&
+      (error.code === ErrorCodes.CONFIG_INVALID || error.code === ErrorCodes.CONFIG_NOT_FOUND);
+    if (!isInvalid) {
+      throw error;
+    }
+
+    const restorePath = explicitPath ?? defaultPath;
+    const restored = await restoreConfigFromBackup(restorePath);
+    if (restored) {
+      return restored;
+    }
+
+    if (error instanceof OMTError && error.code === ErrorCodes.CONFIG_NOT_FOUND) {
+      throw error;
+    }
+
+    throw new OMTError({
+      code: ErrorCodes.CONFIG_INVALID,
+      message: `oh-my-triage configuration at ${restorePath} is invalid and no usable backup was found.`,
+      nextSteps: [
+        'Restore a valid oh-my-triage.config.json backup manually.',
+        'Run `oh-my-triage init --force` to replace the invalid configuration.',
+        'Run `oh-my-triage setup --reset` to recreate configuration through the wizard.',
+      ],
+      details: error instanceof OMTError ? error.details : undefined,
+    });
+  }
+}
+
+/** Attempt to load and validate the config at the given path or by searching upward.
+ *
+ * When no path is given, cosmiconfig searches from the current working directory
+ * and falls back to the platform default config path so project-local and user
+ * configs are both discovered.
+ */
+async function tryLoadValidConfig(targetPath?: string): Promise<LoadedConfig> {
   let result: ConfigSearchResult | null | undefined;
   try {
-    result = configPath ? await explorer.load(resolve(configPath)) : await searchCanonicalConfig();
+    result = targetPath
+      ? await explorer.load(targetPath)
+      : (await explorer.search()) ?? (await loadOptionalConfig(explorer, getDefaultConfigPath()));
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes('ENOENT')) {
       throw new OMTError({
@@ -76,11 +121,24 @@ export async function loadConfig(configPath?: string): Promise<LoadedConfig> {
         nextSteps: ['Run `oh-my-triage init` to create a configuration file.'],
       });
     }
+
+    if (error instanceof Error && error.message.includes('JSON')) {
+      throw new OMTError({
+        code: ErrorCodes.CONFIG_INVALID,
+        message: 'oh-my-triage configuration contains invalid JSON.',
+        nextSteps: [
+          'Run `oh-my-triage init --force` to replace the invalid configuration.',
+          'Run `oh-my-triage setup --reset` to recreate configuration through the wizard.',
+        ],
+        details: { error: redactSecrets(error.message) },
+      });
+    }
+
     throw error;
   }
 
   if (!result) {
-    const legacyResult = await tryLoadLegacyConfig(configPath);
+    const legacyResult = await tryLoadLegacyConfig(targetPath);
     if (legacyResult) {
       result = legacyResult;
     }
@@ -99,12 +157,35 @@ export async function loadConfig(configPath?: string): Promise<LoadedConfig> {
     throw new OMTError({
       code: ErrorCodes.CONFIG_INVALID,
       message: 'oh-my-triage configuration is invalid.',
-      nextSteps: ['Fix the reported fields or run `oh-my-triage setup --reset` to recreate configuration.'],
+      nextSteps: [
+        'Fix the reported fields or run `oh-my-triage setup --reset` to recreate configuration.',
+      ],
       details: { issues: parsed.error.issues },
     });
   }
 
   return { config: parsed.data, filepath: result.filepath };
+}
+
+/** Restore the config file from the newest valid backup and reload it. */
+async function restoreConfigFromBackup(targetPath: string): Promise<LoadedConfig | undefined> {
+  const backup = await readValidBackup(targetPath);
+  if (!backup) {
+    return undefined;
+  }
+
+  await writeFileAtomically(targetPath, backup.content, { backup: false });
+  explorer.clearCaches();
+  legacyExplorer.clearCaches();
+
+  const reloaded = await explorer.load(targetPath);
+  const parsed = ConfigSchema.safeParse(reloaded?.config);
+  if (!parsed.success) {
+    return undefined;
+  }
+
+  logger.warn('Restored oh-my-triage configuration from backup.', { backup_path: backup.backupPath });
+  return { config: parsed.data, filepath: reloaded?.filepath ?? targetPath };
 }
 
 /**
@@ -169,14 +250,20 @@ async function loadOptionalConfig(
   }
 }
 
-/** Save validated oh-my-triage configuration as JSON without overwriting unrelated files. */
+/** Save validated oh-my-triage configuration as JSON without overwriting unrelated files.
+ *
+ * Writes atomically through a same-directory temp file and renames it into place,
+ * and creates a timestamped backup of any existing config file first. This prevents
+ * truncated configs if the process is killed during the write.
+ */
 export async function saveConfig(config: Config, configPath = getDefaultConfigPath()): Promise<string> {
   const normalizedConfig = ConfigSchema.parse({ ...config, updated_at: new Date().toISOString() });
   const targetPath = resolve(configPath);
 
   try {
-    await mkdir(dirname(targetPath), { recursive: true });
-    await writeFile(targetPath, `${JSON.stringify(normalizedConfig, null, 2)}\n`, { encoding: 'utf-8', flag: 'w' });
+    await writeFileAtomically(targetPath, `${JSON.stringify(normalizedConfig, null, 2)}\n`, {
+      backup: true,
+    });
     explorer.clearCaches();
     legacyExplorer.clearCaches();
     return targetPath;

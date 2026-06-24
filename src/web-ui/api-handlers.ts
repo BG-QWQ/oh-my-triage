@@ -1,6 +1,7 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { logger } from '../utils/logger.js';
+import { OMTError, ErrorCodes } from '../core/errors.js';
 import { SonarCloudAdapter } from '../adapters/sonarcloud/sonarcloud-adapter.js';
 import { GitHubAdapter } from '../adapters/github/github-adapter.js';
 import { SarifAdapter } from '../adapters/sarif/sarif-adapter.js';
@@ -209,7 +210,7 @@ async function handleGetStatus(_req: IncomingMessage, res: ServerResponse): Prom
   try {
     const config = await loadOrCreateConfig();
     const mcpClients = await detectMcpClients(config.config.mcp_client_paths);
-    
+
     const configuredScanners: ScannerType[] = [];
     for (const source of config.config.sources) {
       if (
@@ -232,6 +233,16 @@ async function handleGetStatus(_req: IncomingMessage, res: ServerResponse): Prom
     });
   } catch (err) {
     logger.error('Setup status error', { error: String(err) });
+
+    if (err instanceof OMTError && err.code === ErrorCodes.CONFIG_INVALID) {
+      sendJson(res, 500, {
+        error: err.message,
+        code: err.code,
+        next_steps: err.nextSteps,
+      });
+      return;
+    }
+
     sendError(res, 500, 'Failed to get setup status');
   }
 }

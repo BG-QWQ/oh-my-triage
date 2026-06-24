@@ -2,7 +2,7 @@ import open from 'open';
 import { OMTError, ErrorCodes } from '../core/errors.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_SETUP_HOST, DEFAULT_SETUP_PORT } from './defaults.js';
-import { initializeConfig, loadOrCreateConfig, saveConfig, type LoadedConfig } from './config.js';
+import { initializeConfig, loadOrCreateConfig, type LoadedConfig } from './config.js';
 import { detectMcpClients } from './mcp-client-detector.js';
 import { writeMcpClientConfig, type McpConfigWriteResult } from './mcp-config-writer.js';
 import { startStaticServer, stopStaticServer } from '../web-ui/static-assets.js';
@@ -87,8 +87,8 @@ export async function startWebSetup(params?: { host?: string; port?: number; con
 
   await stopStaticServer(staticServer.server);
 
-  // Load or create the config after setup
-  const setupResult = await runSetupService({ configPath: params?.configPath, reset: params?.reset });
-  await saveConfig(setupResult.config.config, setupResult.config.filepath);
-  return setupResult;
+  // Load or create the config after setup. The web UI already persisted any
+  // changes through the setup API, so re-saving here would be redundant and
+  // could overwrite a backup made during an active wizard session.
+  return await runSetupService({ configPath: params?.configPath, reset: params?.reset });
 }

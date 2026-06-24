@@ -15,6 +15,7 @@ import {
   type TokenStorage,
   type SaveSetupSource,
   type RepositoryOption,
+  ApiError,
   getSetupStatus,
   testConnection,
   detectMcpClients,
@@ -138,6 +139,39 @@ function escapeHtml(str: string): string {
   return div.innerHTML;
 }
 
+type ConfigInvalidResponse = {
+  error: string;
+  code: string;
+  next_steps: string[];
+};
+
+/** Extract a structured config-invalid error from an ApiError response. */
+function parseConfigInvalidError(err: unknown): ConfigInvalidResponse | undefined {
+  if (!(err instanceof ApiError) || err.status !== 500) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(err.body) as unknown;
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'code' in parsed &&
+      parsed.code === 'CONFIG_INVALID' &&
+      'error' in parsed &&
+      typeof parsed.error === 'string' &&
+      'next_steps' in parsed &&
+      Array.isArray(parsed.next_steps)
+    ) {
+      return parsed as ConfigInvalidResponse;
+    }
+  } catch {
+    // Ignore malformed JSON bodies.
+  }
+
+  return undefined;
+}
+
 /** Create a loading indicator */
 function showLoading(container: HTMLElement, message: string): void {
   container.querySelectorAll('.status-message, .loading-overlay').forEach((el) => el.remove());
@@ -241,8 +275,16 @@ function initWelcomeStep(): void {
         showStatus(statusContainer, 'info', 'No existing configuration found. Let\'s get started!');
       }
     })
-    .catch(() => {
+    .catch((err: unknown) => {
       removeLoading(statusContainer);
+      const configError = parseConfigInvalidError(err);
+      if (configError) {
+        const steps = configError.next_steps.length > 0
+          ? ` ${configError.next_steps.join(' ')}`
+          : '';
+        showStatus(statusContainer, 'error', `${configError.error}${steps}`);
+        return;
+      }
       showStatus(statusContainer, 'warning', 'Could not reach the setup server. You can still configure settings locally.');
     });
 }
