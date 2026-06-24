@@ -539,6 +539,44 @@ describe('SourceSyncService', () => {
     expectScopedSourceNeedsRepositorySkip(result, 'semgrep');
   });
 
+  it('skips Socket and Semgrep sources when organization or deployment is missing', async () => {
+    const config = createConfig([
+      {
+        id: 'socket',
+        type: 'socket',
+        enabled: true,
+        token_ref: 'socket',
+        options: {},
+      },
+      {
+        id: 'semgrep',
+        type: 'semgrep',
+        enabled: true,
+        token_ref: 'semgrep',
+        options: {},
+      },
+    ]);
+    const { observedSources, service } = createObservedSyncService({
+      db,
+      config,
+    });
+
+    const result = await service.syncSources();
+
+    expect(result).toMatchObject({ sources_total: 2, sources_synced: 0, sources_skipped: 2 });
+    expectObservedSourceIds(observedSources, []);
+    expectSkippedSource(
+      result,
+      'socket',
+      'Socket.dev source socket needs an organization before oh-my-triage can scope it to a project.'
+    );
+    expectSkippedSource(
+      result,
+      'semgrep',
+      'Semgrep source semgrep needs a deployment before oh-my-triage can scope it to a project.'
+    );
+  });
+
   it('skips Snyk source when no project matches the current repository', async () => {
     const config = createConfig([
       {

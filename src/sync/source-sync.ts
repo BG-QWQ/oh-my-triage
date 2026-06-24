@@ -222,11 +222,57 @@ export class SourceSyncService {
         continue;
       }
 
-      if (source.type === 'socket' || source.type === 'semgrep') {
+      if (source.type === 'socket') {
         if (repository === undefined) {
           skipped.push(createScopedSourceNeedsRepositorySkip(source));
           continue;
         }
+
+        const orgSlug =
+          readStringOption(source, 'organization') ??
+          readStringOption(source, 'org_slug') ??
+          projectKeys?.[source.id]?.trim();
+        if (!orgSlug) {
+          skipped.push(
+            createSkippedSourceResult(source, {
+              message: `Socket.dev source ${source.id} needs an organization before oh-my-triage can scope it to a project.`,
+              nextSteps: [
+                `Configure options.organization for ${source.id}.`,
+                `Call omt_sync_sources with source_ids: ['${source.id}'] or all_sources: true to sync without current-project scoping.`,
+              ],
+            })
+          );
+          continue;
+        }
+
+        selected.push(scopedSource(source, repository));
+        continue;
+      }
+
+      if (source.type === 'semgrep') {
+        if (repository === undefined) {
+          skipped.push(createScopedSourceNeedsRepositorySkip(source));
+          continue;
+        }
+
+        const deploymentSlug =
+          readStringOption(source, 'deployment') ??
+          readStringOption(source, 'deployment_slug') ??
+          source.project_key ??
+          projectKeys?.[source.id]?.trim();
+        if (!deploymentSlug) {
+          skipped.push(
+            createSkippedSourceResult(source, {
+              message: `Semgrep source ${source.id} needs a deployment before oh-my-triage can scope it to a project.`,
+              nextSteps: [
+                `Configure options.deployment or options.deployment_slug for ${source.id}.`,
+                `Call omt_sync_sources with source_ids: ['${source.id}'] or all_sources: true to sync without current-project scoping.`,
+              ],
+            })
+          );
+          continue;
+        }
+
         selected.push(scopedSource(source, repository));
         continue;
       }
