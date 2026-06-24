@@ -88,6 +88,56 @@ describe('SnykClient', () => {
       retryable: true,
     });
   });
+
+  it('lists projects with target expansion', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse({
+        data: [
+          {
+            id: 'project-1',
+            attributes: { name: 'web' },
+            relationships: {
+              target: {
+                data: {
+                  id: 'target-1',
+                  attributes: { url: 'https://github.com/acme/web' },
+                },
+              },
+            },
+          },
+        ],
+        links: {},
+      })
+    );
+
+    const client = new SnykClient({ token: 'token-123' });
+    const result = await client.listProjects('org-123');
+
+    expect(result.projects).toHaveLength(1);
+    expect(result.projects[0]?.id).toBe('project-1');
+
+    const call = vi.mocked(fetch).mock.calls[0];
+    expect(call[0]).toBe('https://api.snyk.io/rest/orgs/org-123/projects?version=2024-10-15&limit=100&expand=target');
+  });
+
+  it('filters issues by project ID when scoped to the current project', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse({
+        data: [issue('issue-1', 'high')],
+        links: {},
+      })
+    );
+
+    const client = new SnykClient({ token: 'token-123' });
+    const result = await client.listIssues('org-123', { projectId: 'project-1' });
+
+    expect(result.issues).toHaveLength(1);
+
+    const call = vi.mocked(fetch).mock.calls[0];
+    expect(call[0]).toBe(
+      'https://api.snyk.io/rest/orgs/org-123/issues?version=2024-10-15&limit=100&scan_item.id=project-1'
+    );
+  });
 });
 
 function jsonResponse(body: unknown): Response {

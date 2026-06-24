@@ -12,6 +12,7 @@ import type { SemgrepFinding } from './semgrep-schemas.js';
 /** Configuration for syncing Semgrep findings. */
 export type SemgrepAdapterOptions = SemgrepClientOptions & {
   deploymentSlug?: string;
+  repositoryFullName?: string;
   issueType?: 'sast' | 'sca';
   projectRoot?: string;
 };
@@ -23,12 +24,14 @@ export class SemgrepAdapter implements BaseAdapter {
 
   private readonly client: SemgrepClient;
   private readonly deploymentSlug?: string;
+  private readonly repositoryFullName?: string;
   private readonly issueType?: 'sast' | 'sca';
   private readonly projectRoot?: string;
 
   constructor(options: SemgrepAdapterOptions) {
     this.client = new SemgrepClient(options);
     this.deploymentSlug = options.deploymentSlug;
+    this.repositoryFullName = options.repositoryFullName;
     this.issueType = options.issueType;
     this.projectRoot = options.projectRoot;
   }
@@ -68,6 +71,7 @@ export class SemgrepAdapter implements BaseAdapter {
       page,
       pageSize: options.limit,
       issueType: this.issueType,
+      repos: this.repositoryFullName ? [this.repositoryFullName] : undefined,
     });
     return {
       findings: result.findings.map((finding) => mapSemgrepFindingToFinding(finding, this.projectRoot)),

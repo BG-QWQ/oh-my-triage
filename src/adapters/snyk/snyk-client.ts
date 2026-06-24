@@ -3,7 +3,9 @@ import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
 import {
   SnykIssuesResponseSchema,
   SnykOrganizationsResponseSchema,
+  SnykProjectsResponseSchema,
   type SnykIssue,
+  type SnykProject,
 } from './snyk-schemas.js';
 
 const SNYK_API_BASE = 'https://api.snyk.io/rest';
@@ -61,10 +63,47 @@ export class SnykClient {
     }
   }
 
+  /** List projects for an organization with optional target expansion.
+   *
+   * Target expansion is requested so project entries include the repository URL,
+   * which lets oh-my-triage map Snyk projects to the current GitHub repository.
+   */
+  async listProjects(
+    orgId: string,
+    options: { cursor?: string; limit?: number } = {}
+  ): Promise<{ projects: SnykProject[]; nextCursor?: string }> {
+    try {
+      const params = new URLSearchParams({
+        version: this.apiVersion,
+        limit: String(options.limit ?? DEFAULT_LIMIT),
+        expand: 'target',
+      });
+      if (options.cursor) {
+        params.set('starting_after', options.cursor);
+      }
+      const response = await this.request(`/orgs/${encodeURIComponent(orgId)}/projects?${params.toString()}`);
+      const body = (await response.json()) as unknown;
+      const parsed = SnykProjectsResponseSchema.parse(body);
+      return {
+        projects: parsed.data,
+        nextCursor: parseNextCursor(parsed.links?.next),
+      };
+    } catch (error: unknown) {
+      throw toAdapterError(error, {
+        code: ErrorCodes.ADAPTER_FETCH_FAILED,
+        message: 'Snyk project listing failed.',
+        nextSteps: [
+          'Verify the organization ID exists and the token can access it.',
+          'Confirm the token has the required REST API scopes for project access.',
+        ],
+      });
+    }
+  }
+
   /** List issues for an organization with cursor-based pagination. */
   async listIssues(
     orgId: string,
-    options: { cursor?: string; limit?: number } = {}
+    options: { cursor?: string; limit?: number; projectId?: string } = {}
   ): Promise<{ issues: SnykIssue[]; nextCursor?: string }> {
     try {
       const params = new URLSearchParams({
@@ -73,6 +112,9 @@ export class SnykClient {
       });
       if (options.cursor) {
         params.set('starting_after', options.cursor);
+      }
+      if (options.projectId) {
+        params.set('scan_item.id', options.projectId);
       }
       const response = await this.request(`/orgs/${encodeURIComponent(orgId)}/issues?${params.toString()}`);
       const body = (await response.json()) as unknown;

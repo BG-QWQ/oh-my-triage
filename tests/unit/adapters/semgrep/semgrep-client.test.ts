@@ -43,6 +43,21 @@ describe('SemgrepClient', () => {
     );
   });
 
+  it('filters findings by repository names when scoped to the current project', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ findings: [] }));
+    const client = new SemgrepClient({ token: 'token-123', apiBaseUrl: 'https://semgrep.dev' });
+
+    await expect(client.listFindings('acme', { repos: ['acme/web'] })).resolves.toEqual({
+      findings: [],
+      hasMore: false,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://semgrep.dev/api/v1/deployments/acme/findings?page=0&page_size=100&repos=acme%2Fweb',
+      expect.any(Object)
+    );
+  });
+
   it('increments the page cursor when the caller advances the page', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')

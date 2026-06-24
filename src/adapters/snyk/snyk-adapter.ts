@@ -12,6 +12,7 @@ import type { SnykIssue } from './snyk-schemas.js';
 /** Configuration for syncing Snyk issues. */
 export type SnykAdapterOptions = SnykClientOptions & {
   orgId?: string;
+  projectIds?: string[];
   projectRoot?: string;
 };
 
@@ -22,11 +23,13 @@ export class SnykAdapter implements BaseAdapter {
 
   private readonly client: SnykClient;
   private readonly orgId?: string;
+  private readonly projectIds?: string[];
   private readonly projectRoot?: string;
 
   constructor(options: SnykAdapterOptions) {
     this.client = new SnykClient(options);
     this.orgId = options.orgId;
+    this.projectIds = options.projectIds;
     this.projectRoot = options.projectRoot;
   }
 
@@ -47,7 +50,12 @@ export class SnykAdapter implements BaseAdapter {
     }
   }
 
-  /** Fetch a page of Snyk issues using cursor-based pagination. */
+  /** Fetch a page of Snyk issues using cursor-based pagination.
+   *
+   * When projectIds are provided, the adapter iterates through the project IDs
+   * sequentially. The cursor encodes both the current project index and the
+   * Snyk issue cursor so pagination can resume across project boundaries.
+   */
   async fetchFindings(options: { cursor?: string; limit?: number } = {}): Promise<AdapterFetchResult> {
     if (!this.orgId) {
       throw new OMTError({
@@ -60,6 +68,11 @@ export class SnykAdapter implements BaseAdapter {
         retryable: false,
       });
     }
+
+    if (this.projectIds && this.projectIds.length > 0) {
+      return this.fetchFindingsForProjects(options.cursor, options.limit);
+    }
+
     const result = await this.client.listIssues(this.orgId, {
       cursor: options.cursor,
       limit: options.limit,
@@ -71,6 +84,73 @@ export class SnykAdapter implements BaseAdapter {
       next_cursor: result.nextCursor,
     };
   }
+
+  private async fetchFindingsForProjects(cursor?: string, limit?: number): Promise<AdapterFetchResult> {
+    if (!this.orgId || !this.projectIds || this.projectIds.length === 0) {
+      return { findings: [], total: 0, has_more: false };
+    }
+
+    const { projectIndex, issueCursor } = parseSnykProjectCursor(cursor);
+    let currentProjectIndex = projectIndex;
+    let currentIssueCursor = issueCursor;
+
+    while (currentProjectIndex < this.projectIds.length) {
+      const projectId = this.projectIds[currentProjectIndex];
+      const result = await this.client.listIssues(this.orgId, {
+        cursor: currentIssueCursor,
+        limit,
+        projectId,
+      });
+
+      const findings = result.issues.map((issue) => mapSnykIssueToFinding(issue, this.orgId, this.projectRoot));
+
+      if (result.nextCursor !== undefined) {
+        return {
+          findings,
+          total: findings.length,
+          has_more: true,
+          next_cursor: encodeSnykProjectCursor(currentProjectIndex, result.nextCursor),
+        };
+      }
+
+      if (findings.length > 0) {
+        const nextProjectIndex = currentProjectIndex + 1;
+        return {
+          findings,
+          total: findings.length,
+          has_more: nextProjectIndex < this.projectIds.length,
+          next_cursor: nextProjectIndex < this.projectIds.length
+            ? encodeSnykProjectCursor(nextProjectIndex, undefined)
+            : undefined,
+        };
+      }
+
+      currentProjectIndex += 1;
+      currentIssueCursor = undefined;
+    }
+
+    return { findings: [], total: 0, has_more: false };
+  }
+}
+
+function parseSnykProjectCursor(cursor?: string): { projectIndex: number; issueCursor?: string } {
+  if (!cursor) {
+    return { projectIndex: 0 };
+  }
+  const separatorIndex = cursor.indexOf(':');
+  if (separatorIndex === -1) {
+    return { projectIndex: Number.parseInt(cursor, 10) };
+  }
+  const projectIndex = Number.parseInt(cursor.slice(0, separatorIndex), 10);
+  const issueCursor = cursor.slice(separatorIndex + 1);
+  return {
+    projectIndex: Number.isInteger(projectIndex) && projectIndex >= 0 ? projectIndex : 0,
+    issueCursor: issueCursor || undefined,
+  };
+}
+
+function encodeSnykProjectCursor(projectIndex: number, issueCursor?: string): string {
+  return issueCursor ? `${projectIndex}:${issueCursor}` : String(projectIndex);
 }
 
 /** Map one Snyk issue into the canonical Finding model. */

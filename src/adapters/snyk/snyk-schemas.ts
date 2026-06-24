@@ -84,14 +84,61 @@ export const SnykIssuesResponseSchema = z
   })
   .passthrough();
 
+/** Validate a Snyk project target relationship used to map projects to repositories. */
+export const SnykProjectTargetSchema = z
+  .object({
+    id: z.string().optional(),
+    attributes: z
+      .object({
+        url: z.string().optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+/** Validate a Snyk project returned by the REST API. */
+export const SnykProjectSchema = z
+  .object({
+    id: z.string(),
+    attributes: z
+      .object({
+        name: z.string().optional(),
+      })
+      .passthrough(),
+    relationships: z
+      .object({
+        target: z
+          .object({
+            data: SnykProjectTargetSchema.optional(),
+          })
+          .passthrough(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+/** Validate the Snyk projects response. */
+export const SnykProjectsResponseSchema = z
+  .object({
+    data: z.array(SnykProjectSchema),
+    links: SnykLinksSchema.optional(),
+  })
+  .passthrough();
+
 /** Snyk organization accepted by the Snyk client. */
 export type SnykOrganization = z.infer<typeof SnykOrganizationSchema>;
 
 /** Snyk issue accepted by the Snyk client. */
 export type SnykIssue = z.infer<typeof SnykIssueSchema>;
 
+/** Snyk project accepted by the Snyk client. */
+export type SnykProject = z.infer<typeof SnykProjectSchema>;
+
 /** Snyk organizations response accepted by the Snyk client. */
 export type SnykOrganizationsResponse = z.infer<typeof SnykOrganizationsResponseSchema>;
 
 /** Snyk issues response accepted by the Snyk client. */
 export type SnykIssuesResponse = z.infer<typeof SnykIssuesResponseSchema>;
+
+/** Snyk projects response accepted by the Snyk client. */
+export type SnykProjectsResponse = z.infer<typeof SnykProjectsResponseSchema>;

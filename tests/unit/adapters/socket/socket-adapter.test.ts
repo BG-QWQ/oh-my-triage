@@ -51,6 +51,25 @@ describe('SocketAdapter', () => {
       code: 'CONFIG_INVALID',
     });
   });
+
+  it('passes repository scope through to the client', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ items: [alert('alert-1')], endCursor: null, totalCount: 1 }));
+
+    const adapter = new SocketAdapter({
+      token: 'token-123',
+      orgSlug: 'acme',
+      repositoryFullName: 'acme/web',
+    });
+    const result = await adapter.fetchFindings({});
+
+    expect(result.findings).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('filters.repoFullName=acme%2Fweb'),
+      expect.any(Object)
+    );
+  });
 });
 
 describe('mapSocketAlertToFinding', () => {
