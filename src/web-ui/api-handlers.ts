@@ -307,7 +307,10 @@ async function handleTestConnection(req: IncomingMessage, res: ServerResponse): 
           sendError(res, 400, 'Snyk token is required');
           return;
         }
-        const adapter = new SnykAdapter({ token });
+        const adapter = new SnykAdapter({
+          token,
+          orgId: configString(config, 'org_id') || undefined,
+        });
         result = await adapter.testConnection();
         break;
       }
@@ -317,7 +320,10 @@ async function handleTestConnection(req: IncomingMessage, res: ServerResponse): 
           sendError(res, 400, 'Semgrep token is required');
           return;
         }
-        const adapter = new SemgrepAdapter({ token });
+        const adapter = new SemgrepAdapter({
+          token,
+          deploymentSlug: configString(config, 'deployment') || undefined,
+        });
         result = await adapter.testConnection();
         break;
       }

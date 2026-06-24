@@ -257,6 +257,93 @@ describe('handleApiRequest', () => {
     expect(body.projects_found).toBe(1);
   });
 
+  it('persists Socket.dev organization slug from setup options', async () => {
+    const response = new StubResponse();
+    const request = createJsonRequest('/api/setup/save', 'POST', {
+      token_storage: 'env',
+      sources: [
+        {
+          id: 'socket',
+          type: 'socket',
+          name: 'Socket.dev',
+          enabled: true,
+          token: 'token-123',
+          options: { organization: 'acme-corp' },
+        },
+      ],
+    });
+
+    const handled = await handleApiRequest(request, response as unknown as ServerResponse);
+
+    expect(handled).toBe(true);
+    expect(response.statusCode).toBe(200);
+    expect(configState.savedConfig?.sources).toEqual([
+      expect.objectContaining({
+        id: 'socket',
+        type: 'socket',
+        options: { organization: 'acme-corp' },
+      }),
+    ]);
+  });
+
+  it('persists Snyk org id from setup options', async () => {
+    const response = new StubResponse();
+    const request = createJsonRequest('/api/setup/save', 'POST', {
+      token_storage: 'env',
+      sources: [
+        {
+          id: 'snyk',
+          type: 'snyk',
+          name: 'Snyk',
+          enabled: true,
+          token: 'token-123',
+          options: { org_id: 'snyk-org-123' },
+        },
+      ],
+    });
+
+    const handled = await handleApiRequest(request, response as unknown as ServerResponse);
+
+    expect(handled).toBe(true);
+    expect(response.statusCode).toBe(200);
+    expect(configState.savedConfig?.sources).toEqual([
+      expect.objectContaining({
+        id: 'snyk',
+        type: 'snyk',
+        options: { org_id: 'snyk-org-123' },
+      }),
+    ]);
+  });
+
+  it('persists Semgrep deployment slug from setup options', async () => {
+    const response = new StubResponse();
+    const request = createJsonRequest('/api/setup/save', 'POST', {
+      token_storage: 'env',
+      sources: [
+        {
+          id: 'semgrep',
+          type: 'semgrep',
+          name: 'Semgrep',
+          enabled: true,
+          token: 'token-123',
+          options: { deployment: 'acme-deployment' },
+        },
+      ],
+    });
+
+    const handled = await handleApiRequest(request, response as unknown as ServerResponse);
+
+    expect(handled).toBe(true);
+    expect(response.statusCode).toBe(200);
+    expect(configState.savedConfig?.sources).toEqual([
+      expect.objectContaining({
+        id: 'semgrep',
+        type: 'semgrep',
+        options: { deployment: 'acme-deployment' },
+      }),
+    ]);
+  });
+
   it('returns the current server command for MCP client previews', async () => {
     const response = new StubResponse();
 

@@ -66,8 +66,11 @@ interface WizardState {
   sonarcloudOrganization: string;
   sonarcloudProject: string;
   socketToken: string;
+  socketOrganization: string;
   snykToken: string;
+  snykOrganization: string;
   semgrepToken: string;
+  semgrepDeployment: string;
   tokenStorage: TokenStorage;
   connectionResults: Map<ScannerType, TestConnectionResponse>;
   mcpClients: McpClientDetection | null;
@@ -89,8 +92,11 @@ const state: WizardState = {
   sonarcloudOrganization: '',
   sonarcloudProject: '',
   socketToken: '',
+  socketOrganization: '',
   snykToken: '',
+  snykOrganization: '',
   semgrepToken: '',
+  semgrepDeployment: '',
   tokenStorage: 'keychain',
   connectionResults: new Map(),
   mcpClients: null,
@@ -568,9 +574,11 @@ async function handleSonarcloudConnectionTest(testBtn: HTMLButtonElement, status
 
 function initSocketConfigStep(): void {
   const tokenInput = $<HTMLInputElement>('#socket-token');
+  const organizationInput = $<HTMLInputElement>('#socket-organization');
   const statusContainer = $<HTMLElement>('#socket-status');
 
   tokenInput.value = state.socketToken;
+  organizationInput.value = state.socketOrganization;
 
   // Toggle password visibility
   const toggleBtn = $<HTMLButtonElement>('#toggle-socket-token');
@@ -582,6 +590,10 @@ function initSocketConfigStep(): void {
 
   tokenInput.addEventListener('input', () => {
     state.socketToken = tokenInput.value.trim();
+  });
+
+  organizationInput.addEventListener('input', () => {
+    state.socketOrganization = organizationInput.value.trim();
   });
 
   // Test connection
@@ -604,6 +616,7 @@ async function handleSocketConnectionTest(testBtn: HTMLButtonElement, statusCont
   try {
     const result = await testConnection('socket', {
       token: state.socketToken,
+      organization: state.socketOrganization || undefined,
     });
     removeLoading(statusContainer);
 
@@ -629,9 +642,11 @@ async function handleSocketConnectionTest(testBtn: HTMLButtonElement, statusCont
 
 function initSnykConfigStep(): void {
   const tokenInput = $<HTMLInputElement>('#snyk-token');
+  const organizationInput = $<HTMLInputElement>('#snyk-organization');
   const statusContainer = $<HTMLElement>('#snyk-status');
 
   tokenInput.value = state.snykToken;
+  organizationInput.value = state.snykOrganization;
 
   // Toggle password visibility
   const toggleBtn = $<HTMLButtonElement>('#toggle-snyk-token');
@@ -643,6 +658,10 @@ function initSnykConfigStep(): void {
 
   tokenInput.addEventListener('input', () => {
     state.snykToken = tokenInput.value.trim();
+  });
+
+  organizationInput.addEventListener('input', () => {
+    state.snykOrganization = organizationInput.value.trim();
   });
 
   // Test connection
@@ -665,6 +684,7 @@ async function handleSnykConnectionTest(testBtn: HTMLButtonElement, statusContai
   try {
     const result = await testConnection('snyk', {
       token: state.snykToken,
+      org_id: state.snykOrganization || undefined,
     });
     removeLoading(statusContainer);
 
@@ -690,9 +710,11 @@ async function handleSnykConnectionTest(testBtn: HTMLButtonElement, statusContai
 
 function initSemgrepConfigStep(): void {
   const tokenInput = $<HTMLInputElement>('#semgrep-token');
+  const deploymentInput = $<HTMLInputElement>('#semgrep-deployment');
   const statusContainer = $<HTMLElement>('#semgrep-status');
 
   tokenInput.value = state.semgrepToken;
+  deploymentInput.value = state.semgrepDeployment;
 
   // Toggle password visibility
   const toggleBtn = $<HTMLButtonElement>('#toggle-semgrep-token');
@@ -704,6 +726,10 @@ function initSemgrepConfigStep(): void {
 
   tokenInput.addEventListener('input', () => {
     state.semgrepToken = tokenInput.value.trim();
+  });
+
+  deploymentInput.addEventListener('input', () => {
+    state.semgrepDeployment = deploymentInput.value.trim();
   });
 
   // Test connection
@@ -726,6 +752,7 @@ async function handleSemgrepConnectionTest(testBtn: HTMLButtonElement, statusCon
   try {
     const result = await testConnection('semgrep', {
       token: state.semgrepToken,
+      deployment: state.semgrepDeployment || undefined,
     });
     removeLoading(statusContainer);
 
@@ -821,7 +848,9 @@ function buildSetupSources(): SaveSetupSource[] {
       name: 'Socket.dev',
       enabled: true,
       token: state.socketToken || undefined,
-      options: {},
+      options: {
+        organization: state.socketOrganization || undefined,
+      },
     });
   }
 
@@ -832,7 +861,9 @@ function buildSetupSources(): SaveSetupSource[] {
       name: 'Snyk',
       enabled: true,
       token: state.snykToken || undefined,
-      options: {},
+      options: {
+        org_id: state.snykOrganization || undefined,
+      },
     });
   }
 
@@ -843,7 +874,9 @@ function buildSetupSources(): SaveSetupSource[] {
       name: 'Semgrep',
       enabled: true,
       token: state.semgrepToken || undefined,
-      options: {},
+      options: {
+        deployment: state.semgrepDeployment || undefined,
+      },
     });
   }
 

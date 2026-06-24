@@ -242,6 +242,12 @@
         </div>
 
         <div class="form-group">
+          <label for="socket-organization">Organization Slug</label>
+          <input type="text" id="socket-organization" placeholder="your-org-slug">
+          <p class="form-hint">Required to scope Socket.dev alerts to the current repository during sync. Find it in your Socket.dev organization URL.</p>
+        </div>
+
+        <div class="form-group">
           <button type="button" class="btn btn-secondary" id="test-socket-connection">
             <span class="spinner" style="display:none;"></span>
             Test Connection
@@ -265,6 +271,12 @@
         </div>
 
         <div class="form-group">
+          <label for="snyk-organization">Organization ID</label>
+          <input type="text" id="snyk-organization" placeholder="your-snyk-org-id">
+          <p class="form-hint">Required to scope Snyk issues to the current repository during sync. Find it in Snyk → Organization Settings.</p>
+        </div>
+
+        <div class="form-group">
           <button type="button" class="btn btn-secondary" id="test-snyk-connection">
             <span class="spinner" style="display:none;"></span>
             Test Connection
@@ -285,6 +297,12 @@
             <button type="button" class="toggle-password" id="toggle-semgrep-token">Show</button>
           </div>
           <p class="form-hint">Generate a token at <a href="https://semgrep.dev/orgs/-/settings/tokens" target="_blank" rel="noopener">Semgrep → Settings → Tokens</a>.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="semgrep-deployment">Deployment Slug</label>
+          <input type="text" id="semgrep-deployment" placeholder="your-deployment-slug">
+          <p class="form-hint">Required to scope Semgrep findings to the current repository during sync. Find it in Semgrep → Settings → Deployments.</p>
         </div>
 
         <div class="form-group">
