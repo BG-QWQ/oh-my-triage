@@ -96,7 +96,7 @@ describe('SocketClient', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({
         organizations: {
-          '363089': { id: '363089', name: 'Example Org', slug: 'xxx-xxxxxx' },
+          '123456': { id: '123456', name: 'Example Org', slug: 'xxx-xxxxxx' },
         },
       })
     );
