@@ -68,6 +68,19 @@ export function createHttpAdapterError(params: {
   }
 
   if (params.status === 403) {
+    if (params.source === 'Snyk') {
+      return new OMTError({
+        code: ErrorCodes.PERMISSION_DENIED,
+        message: `Snyk REST API access is forbidden. The token may still be valid for login, organization listing, or the Snyk Web UI, but Snyk can reject public REST project and issue APIs when API access is not included in the organization's plan or when the token lacks project/issue read permission.${scopeMessage}${body}`,
+        nextSteps: [
+          'Confirm the Snyk organization has API access enabled in its plan or contract.',
+          'Use a Snyk personal or service token that can read projects and issues through the public REST API.',
+          'Retry after Snyk support or an organization administrator confirms API access is available.',
+        ],
+        retryable: false,
+      });
+    }
+
     return new OMTError({
       code: ErrorCodes.PERMISSION_DENIED,
       message: `${params.source} denied access.${scopeMessage}${body}`,

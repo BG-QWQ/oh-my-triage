@@ -89,6 +89,40 @@ describe('SnykClient', () => {
     });
   });
 
+  it('explains Snyk REST API entitlement failures when project listing is forbidden', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      jsonResponse(
+        {
+          jsonapi: { version: '1.0' },
+          errors: [
+            {
+              status: '403',
+              title: 'Forbidden',
+              detail: 'Forbidden',
+              meta: {
+                missing_details: [
+                  {
+                    entitlement: 'api',
+                    reason: 'NOT_ENTITLED_BY_CONTRACT',
+                    message: 'Not entitled to api due to the entitlement being disabled in the billing contract',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        403
+      )
+    );
+
+    const client = new SnykClient({ token: 'secret-token' });
+    await expect(client.listProjects('org-123')).rejects.toMatchObject({
+      code: ErrorCodes.PERMISSION_DENIED,
+      message: expect.stringContaining('Snyk REST API access is forbidden'),
+      nextSteps: expect.arrayContaining([expect.stringContaining('API access')]),
+    });
+  });
+
   it('lists projects with target expansion', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       jsonResponse({
@@ -140,8 +174,8 @@ describe('SnykClient', () => {
   });
 });
 
-function jsonResponse(body: unknown): Response {
-  return new Response(JSON.stringify(body), { status: 200 });
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status });
 }
 
 function errorResponse(status: number, message: string): Response {
