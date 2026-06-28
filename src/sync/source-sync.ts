@@ -48,6 +48,11 @@ type SonarCloudProjectListResult = {
   truncated: boolean;
 };
 
+type SourceResolution =
+  | { source: SourceConfig }
+  | { skipped: SourceSyncResult }
+  | { ignored: true };
+
 /** Status for one configured source synchronization attempt. */
 export type SourceSyncStatus = 'success' | 'failed' | 'skipped';
 
@@ -201,104 +206,130 @@ export class SourceSyncService {
     const skipped: SourceSyncResult[] = [];
 
     for (const source of sources) {
-      if (source.type === 'github') {
-        if (repository !== undefined && matchesGitHubRepository(source, repository)) {
-          selected.push(source);
-        }
-        continue;
+      const result = await this.resolveSourceForCurrentRepository(source, repository, projectKeys, maxPages);
+      if ('source' in result) {
+        selected.push(result.source);
+      } else if ('skipped' in result) {
+        skipped.push(result.skipped);
       }
-
-      if (source.type === 'sonarcloud') {
-        if (hasEffectiveProjectKey(source, projectKeys)) {
-          selected.push(source);
-          continue;
-        }
-
-        const inferred = await this.inferSonarCloudProjectSource(source, repository, maxPages);
-        if ('source' in inferred) {
-          selected.push(inferred.source);
-        } else {
-          skipped.push(inferred.skipped);
-        }
-        continue;
-      }
-
-      if (source.type === 'socket') {
-        if (repository === undefined) {
-          skipped.push(createScopedSourceNeedsRepositorySkip(source));
-          continue;
-        }
-
-        const orgSlug =
-          readStringOption(source, 'organization') ??
-          readStringOption(source, 'org_slug') ??
-          projectKeys?.[source.id]?.trim();
-        if (!orgSlug) {
-          skipped.push(
-            createSkippedSourceResult(source, {
-              message: `Socket.dev source ${source.id} needs an organization before oh-my-triage can scope it to a project.`,
-              nextSteps: [
-                `Configure options.organization for ${source.id}.`,
-                `Call omt_sync_sources with source_ids: ['${source.id}'] or all_sources: true to sync without current-project scoping.`,
-              ],
-            })
-          );
-          continue;
-        }
-
-        selected.push(scopedSource(source, repository));
-        continue;
-      }
-
-      if (source.type === 'semgrep') {
-        if (repository === undefined) {
-          skipped.push(createScopedSourceNeedsRepositorySkip(source));
-          continue;
-        }
-
-        const deploymentSlug =
-          readStringOption(source, 'deployment') ??
-          readStringOption(source, 'deployment_slug') ??
-          source.project_key ??
-          projectKeys?.[source.id]?.trim();
-        if (!deploymentSlug) {
-          skipped.push(
-            createSkippedSourceResult(source, {
-              message: `Semgrep source ${source.id} needs a deployment before oh-my-triage can scope it to a project.`,
-              nextSteps: [
-                `Configure options.deployment or options.deployment_slug for ${source.id}.`,
-                `Call omt_sync_sources with source_ids: ['${source.id}'] or all_sources: true to sync without current-project scoping.`,
-              ],
-            })
-          );
-          continue;
-        }
-
-        selected.push(scopedSource(source, repository));
-        continue;
-      }
-
-      if (source.type === 'snyk') {
-        if (repository === undefined) {
-          skipped.push(createScopedSourceNeedsRepositorySkip(source));
-          continue;
-        }
-
-        const inferred = await this.inferSnykProjectSource(source, repository, projectKeys, maxPages);
-        if ('source' in inferred) {
-          selected.push(inferred.source);
-        } else {
-          skipped.push(inferred.skipped);
-        }
-        continue;
-      }
-
-      // SARIF paths cannot be inferred from the current repository, so SARIF
-      // sources are skipped unless the caller explicitly requests them.
-      skipped.push(createSkippedSourceResult(source, createDefaultScopeSkipReason(source)));
     }
 
     return { sources: selected, skipped };
+  }
+
+  private async resolveSourceForCurrentRepository(
+    source: SourceConfig,
+    repository: GitHubRepositoryIdentity | undefined,
+    projectKeys: Record<string, string> | undefined,
+    maxPages: number
+  ): Promise<SourceResolution> {
+    switch (source.type) {
+      case 'github':
+        return this.resolveGitHubSource(source, repository);
+      case 'sonarcloud':
+        return this.resolveSonarCloudSource(source, repository, projectKeys, maxPages);
+      case 'socket':
+        return this.resolveSocketSource(source, repository, projectKeys);
+      case 'semgrep':
+        return this.resolveSemgrepSource(source, repository, projectKeys);
+      case 'snyk':
+        return this.resolveSnykSource(source, repository, projectKeys, maxPages);
+      default:
+        return { skipped: createSkippedSourceResult(source, createDefaultScopeSkipReason(source)) };
+    }
+  }
+
+  private resolveGitHubSource(
+    source: SourceConfig,
+    repository: GitHubRepositoryIdentity | undefined
+  ): SourceResolution {
+    if (repository !== undefined && matchesGitHubRepository(source, repository)) {
+      return { source };
+    }
+    return { ignored: true };
+  }
+
+  private async resolveSonarCloudSource(
+    source: SourceConfig,
+    repository: GitHubRepositoryIdentity | undefined,
+    projectKeys: Record<string, string> | undefined,
+    maxPages: number
+  ): Promise<SourceResolution> {
+    if (hasEffectiveProjectKey(source, projectKeys)) {
+      return { source };
+    }
+
+    return this.inferSonarCloudProjectSource(source, repository, maxPages);
+  }
+
+  private resolveSocketSource(
+    source: SourceConfig,
+    repository: GitHubRepositoryIdentity | undefined,
+    projectKeys: Record<string, string> | undefined
+  ): SourceResolution {
+    if (repository === undefined) {
+      return { skipped: createScopedSourceNeedsRepositorySkip(source) };
+    }
+
+    const orgSlug =
+      readStringOption(source, 'organization') ??
+      readStringOption(source, 'org_slug') ??
+      projectKeys?.[source.id]?.trim();
+    if (!orgSlug) {
+      return {
+        skipped: createSkippedSourceResult(source, {
+          message: `Socket.dev source ${source.id} needs an organization before oh-my-triage can scope it to a project.`,
+          nextSteps: [
+            `Configure options.organization for ${source.id}.`,
+            `Call omt_sync_sources with source_ids: ['${source.id}'] or all_sources: true to sync without current-project scoping.`,
+          ],
+        }),
+      };
+    }
+
+    return { source: scopedSource(source, repository) };
+  }
+
+  private resolveSemgrepSource(
+    source: SourceConfig,
+    repository: GitHubRepositoryIdentity | undefined,
+    projectKeys: Record<string, string> | undefined
+  ): SourceResolution {
+    if (repository === undefined) {
+      return { skipped: createScopedSourceNeedsRepositorySkip(source) };
+    }
+
+    const deploymentSlug =
+      readStringOption(source, 'deployment') ??
+      readStringOption(source, 'deployment_slug') ??
+      source.project_key ??
+      projectKeys?.[source.id]?.trim();
+    if (!deploymentSlug) {
+      return {
+        skipped: createSkippedSourceResult(source, {
+          message: `Semgrep source ${source.id} needs a deployment before oh-my-triage can scope it to a project.`,
+          nextSteps: [
+            `Configure options.deployment or options.deployment_slug for ${source.id}.`,
+            `Call omt_sync_sources with source_ids: ['${source.id}'] or all_sources: true to sync without current-project scoping.`,
+          ],
+        }),
+      };
+    }
+
+    return { source: scopedSource(source, repository) };
+  }
+
+  private async resolveSnykSource(
+    source: SourceConfig,
+    repository: GitHubRepositoryIdentity | undefined,
+    projectKeys: Record<string, string> | undefined,
+    maxPages: number
+  ): Promise<SourceResolution> {
+    if (repository === undefined) {
+      return { skipped: createScopedSourceNeedsRepositorySkip(source) };
+    }
+
+    return this.inferSnykProjectSource(source, repository, projectKeys, maxPages);
   }
 
   private async inferSonarCloudProjectSource(
@@ -1042,12 +1073,7 @@ function applySyncOverrides(source: SourceConfig, options: SyncSourcesOptions): 
     case 'sonarcloud': {
       return { ...source, project_key: projectKey };
     }
-    case 'socket': {
-      return {
-        ...source,
-        options: { ...source.options, organization: projectKey },
-      };
-    }
+    case 'socket':
     case 'snyk': {
       return {
         ...source,

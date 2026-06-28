@@ -656,6 +656,48 @@ describe('SourceSyncService', () => {
     );
   });
 
+  it('uses per-call project keys to include Socket and Semgrep in default current-project sync', async () => {
+    const config = createConfig([
+      {
+        id: 'socket',
+        type: 'socket',
+        enabled: true,
+        token_ref: 'socket',
+        options: {},
+      },
+      {
+        id: 'semgrep',
+        type: 'semgrep',
+        enabled: true,
+        token_ref: 'semgrep',
+        options: {},
+      },
+    ]);
+    const { observedSources, service } = createObservedSyncService({
+      db,
+      config,
+    });
+
+    const result = await service.syncSources({ projectKeys: { socket: 'acme-org', semgrep: 'acme-deployment' } });
+
+    expect(result).toMatchObject({ sources_total: 2, sources_synced: 2, sources_skipped: 0 });
+    expectObservedSourceIds(observedSources, ['socket', 'semgrep']);
+    expect(observedSources.find((source) => source.id === 'socket')?.options).toMatchObject({
+      organization: 'acme-org',
+      repository_full_name: 'web',
+    });
+    expect(observedSources.find((source) => source.id === 'semgrep')).toMatchObject({
+      project_key: 'acme-deployment',
+      options: {
+        deployment: 'acme-deployment',
+        repository_full_name: 'acme/web',
+      },
+    });
+    expect(config.sources[0]?.options.organization).toBeUndefined();
+    expect(config.sources[1]?.project_key).toBeUndefined();
+    expect(config.sources[1]?.options.deployment).toBeUndefined();
+  });
+
   it('skips Snyk source when no project matches the current repository', async () => {
     const config = createConfig([
       {
