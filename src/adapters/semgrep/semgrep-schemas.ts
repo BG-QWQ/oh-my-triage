@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const SemgrepFindingIdSchema = z.union([z.string(), z.number().finite()]).transform((id) => String(id));
+const SemgrepFindingIdSchema = z.union([z.string(), z.number().finite()]).transform(String);
 
 /** Validate one Semgrep finding while preserving scanner-specific fields. */
 export const SemgrepFindingSchema = z

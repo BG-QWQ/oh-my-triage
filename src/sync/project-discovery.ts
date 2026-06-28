@@ -10,7 +10,7 @@ import { redactSecrets } from '../utils/redaction.js';
 
 const DEFAULT_MAX_PAGES = 10;
 
-const DISCOVERABLE_SOURCE_TYPES: SourceConfig['type'][] = ['sonarcloud', 'socket', 'snyk', 'semgrep'];
+const DISCOVERABLE_SOURCE_TYPES = new Set<SourceConfig['type']>(['sonarcloud', 'socket', 'snyk', 'semgrep']);
 
 type SonarCloudProjectListClient = Pick<SonarCloudClient, 'listProjects'>;
 type SocketOrganizationListClient = Pick<SocketClient, 'listOrganizations'>;
@@ -127,7 +127,7 @@ export class ProjectDiscoveryService {
   private selectSources(sourceIds?: string[]): SourceConfig[] {
     const enabled = this.options.config.sources.filter((source) => source.enabled);
     if (!sourceIds?.length) {
-      return enabled.filter((source) => DISCOVERABLE_SOURCE_TYPES.includes(source.type));
+      return enabled.filter((source) => DISCOVERABLE_SOURCE_TYPES.has(source.type));
     }
 
     const requested = new Set(sourceIds);
@@ -138,7 +138,7 @@ export class ProjectDiscoveryService {
     source: SourceConfig,
     options: DiscoverProjectsOptions
   ): Promise<SourceProjectDiscoveryResult> {
-    if (!DISCOVERABLE_SOURCE_TYPES.includes(source.type)) {
+    if (!DISCOVERABLE_SOURCE_TYPES.has(source.type)) {
       return {
         source_id: source.id,
         source_type: source.type,

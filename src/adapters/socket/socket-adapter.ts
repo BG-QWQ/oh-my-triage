@@ -78,8 +78,10 @@ export class SocketAdapter implements BaseAdapter {
 
 /** Map one Socket.dev alert into the canonical Finding model. */
 export function mapSocketAlertToFinding(alert: SocketAlert, projectRoot?: string): Finding {
+  const branchSuffix = alert.branch ? `:${alert.branch}` : '';
+  const locationPrefix = alert.repo_full_name;
   const locationPath = alert.repo_full_name
-    ? `${alert.repo_full_name}${alert.branch ? `:${alert.branch}` : ''}`
+    ? `${locationPrefix}${branchSuffix}`
     : `socket://orgs/${alert.organization ?? 'unknown'}/alerts/${alert.id}`;
   const message = alert.title ?? alert.description ?? `Socket.dev ${alert.type ?? 'alert'}`;
   const mapped = mapFields({

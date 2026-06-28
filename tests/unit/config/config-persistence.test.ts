@@ -46,7 +46,7 @@ describe('config persistence', () => {
     expect(current.sources[0]?.id).toBe('second');
 
     const backups = listBackups(targetPath);
-    expect(backups.length).toBe(1);
+    expect(backups).toHaveLength(1);
     const backup = JSON.parse(readFileSync(backups[0]!, 'utf-8')) as Config;
     expect(backup.sources[0]?.id).toBe('second');
   });
@@ -61,7 +61,7 @@ describe('config persistence', () => {
     expect(parsed.sources[0]?.id).toBe('only');
 
     const tempFiles = listTempFiles(tempDir);
-    expect(tempFiles.length).toBe(0);
+    expect(tempFiles).toHaveLength(0);
   });
 
   it('loadConfig restores from the newest valid backup when the target file is empty', async () => {

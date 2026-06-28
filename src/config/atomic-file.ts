@@ -63,8 +63,7 @@ async function listBackupPaths(targetPath: string): Promise<string[]> {
 
   return entries
     .filter((name) => name.startsWith(prefix))
-    .sort()
-    .reverse()
+    .sort((left, right) => right.localeCompare(left))
     .map((name) => join(dir, name));
 }
 

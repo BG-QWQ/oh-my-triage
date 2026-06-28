@@ -115,13 +115,12 @@ export class SnykAdapter implements BaseAdapter {
 
       if (findings.length > 0) {
         const nextProjectIndex = currentProjectIndex + 1;
+        const hasMoreProjects = nextProjectIndex < this.projectIds.length;
         return {
           findings,
           total: findings.length,
-          has_more: nextProjectIndex < this.projectIds.length,
-          next_cursor: nextProjectIndex < this.projectIds.length
-            ? encodeSnykProjectCursor(nextProjectIndex, undefined)
-            : undefined,
+          has_more: hasMoreProjects,
+          ...(hasMoreProjects ? { next_cursor: encodeSnykProjectCursor(nextProjectIndex) } : {}),
         };
       }
 

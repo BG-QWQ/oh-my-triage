@@ -113,9 +113,9 @@ export class SarifAdapter implements BaseAdapter {
 
     const validation = SarifLogSchema.safeParse(parsed);
     if (!validation.success) {
-      const versionIssue = validation.error.issues.find((issue) => issue.path.join('.') === 'version');
+      const hasVersionIssue = validation.error.issues.some((issue) => issue.path.join('.') === 'version');
       throw new OMTError({
-        code: versionIssue ? ErrorCodes.SARIF_INVALID_VERSION : ErrorCodes.SARIF_PARSE_ERROR,
+        code: hasVersionIssue ? ErrorCodes.SARIF_INVALID_VERSION : ErrorCodes.SARIF_PARSE_ERROR,
         message: `SARIF validation failed: ${validation.error.issues
           .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
           .slice(0, 5)

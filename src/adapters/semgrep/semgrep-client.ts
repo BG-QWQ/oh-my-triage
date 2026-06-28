@@ -96,11 +96,12 @@ export class SemgrepClient {
     if (!response.ok) {
       const body = await safeResponseText(response);
       const redactedBody = body ? redactSemgrepBody(body) : undefined;
+      const bodySuffix = redactedBody ? ` Body: ${redactedBody.slice(0, 500)}` : '';
 
       if (response.status === 404) {
         throw new OMTError({
           code: ErrorCodes.ADAPTER_FETCH_FAILED,
-          message: `Semgrep resource was not found.${redactedBody ? ` Body: ${redactedBody.slice(0, 500)}` : ''}`,
+          message: `Semgrep resource was not found.${bodySuffix}`,
           nextSteps: [
             'Grant the Semgrep Web API scope to the token.',
             'Verify the deployment slug is spelled correctly.',
