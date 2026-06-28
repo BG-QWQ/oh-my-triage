@@ -14,7 +14,17 @@ describe('GitHubClient', () => {
       valid: true,
       observedScopes: ['security_events'],
     });
-    expect(fetchMock).toHaveBeenCalledWith('https://api.github.test/user', expect.any(Object));
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.github.test/user',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: 'application/vnd.github+json',
+          Authorization: 'Bearer token-123',
+          'User-Agent': 'oh-my-triage/0.1',
+          'X-GitHub-Api-Version': '2022-11-28',
+        }),
+      })
+    );
   });
 
   it('validates repository access when owner and repository are configured', async () => {

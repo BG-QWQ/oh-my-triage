@@ -1,5 +1,6 @@
 import { ErrorCodes, OMTError } from '../../core/errors.js';
-import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
+import { toAdapterError } from '../adapter-errors.js';
+import { fetchAdapterResponse } from '../adapter-http.js';
 import {
   SonarCloudAuthValidationSchema,
   SonarCloudIssueSearchSchema,
@@ -90,32 +91,13 @@ export class SonarCloudClient {
   }
 
   private async request(path: string): Promise<Response> {
-    const response = await fetch(`${this.apiBaseUrl}${path}`, {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${this.token}`,
-        'User-Agent': 'oh-my-triage/0.1',
-      },
+    return fetchAdapterResponse({
+      source: 'SonarCloud',
+      baseUrl: this.apiBaseUrl,
+      path,
+      token: this.token,
+      accept: 'application/json',
+      authorizationScheme: 'Bearer',
     });
-
-    if (!response.ok) {
-      const body = await safeResponseText(response);
-      throw createHttpAdapterError({
-        source: 'SonarCloud',
-        status: response.status,
-        statusText: response.statusText,
-        body,
-      });
-    }
-
-    return response;
-  }
-}
-
-async function safeResponseText(response: Response): Promise<string | undefined> {
-  try {
-    return await response.text();
-  } catch {
-    return undefined;
   }
 }

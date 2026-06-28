@@ -1,5 +1,6 @@
 import { ErrorCodes, OMTError } from '../../core/errors.js';
-import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
+import { toAdapterError } from '../adapter-errors.js';
+import { fetchAdapterResponse } from '../adapter-http.js';
 import { redactSecrets } from '../../utils/redaction.js';
 import {
   SemgrepDeploymentListSchema,
@@ -84,50 +85,33 @@ export class SemgrepClient {
   }
 
   private async request(path: string): Promise<Response> {
-    const response = await fetch(`${this.apiBaseUrl}${path}`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${this.token}`,
-        'User-Agent': 'oh-my-triage/0.1',
+    return fetchAdapterResponse({
+      source: 'Semgrep',
+      baseUrl: this.apiBaseUrl,
+      path,
+      token: this.token,
+      accept: 'application/json',
+      authorizationScheme: 'Bearer',
+      init: { method: 'GET' },
+      bodyTransform: (body) => (body ? redactSemgrepBody(body) : undefined),
+      onErrorResponse: (response, redactedBody) => {
+        if (response.status === 404) {
+          const bodySuffix = redactedBody ? ` Body: ${redactedBody.slice(0, 500)}` : '';
+          return new OMTError({
+            code: ErrorCodes.ADAPTER_FETCH_FAILED,
+            message: `Semgrep resource was not found.${bodySuffix}`,
+            nextSteps: [
+              'Grant the Semgrep Web API scope to the token.',
+              'Verify the deployment slug is spelled correctly.',
+              'Retry the connection test before fetching findings.',
+            ],
+            retryable: false,
+          });
+        }
+
+        return undefined;
       },
     });
-
-    if (!response.ok) {
-      const body = await safeResponseText(response);
-      const redactedBody = body ? redactSemgrepBody(body) : undefined;
-      const bodySuffix = redactedBody ? ` Body: ${redactedBody.slice(0, 500)}` : '';
-
-      if (response.status === 404) {
-        throw new OMTError({
-          code: ErrorCodes.ADAPTER_FETCH_FAILED,
-          message: `Semgrep resource was not found.${bodySuffix}`,
-          nextSteps: [
-            'Grant the Semgrep Web API scope to the token.',
-            'Verify the deployment slug is spelled correctly.',
-            'Retry the connection test before fetching findings.',
-          ],
-          retryable: false,
-        });
-      }
-
-      throw createHttpAdapterError({
-        source: 'Semgrep',
-        status: response.status,
-        statusText: response.statusText,
-        body: redactedBody,
-      });
-    }
-
-    return response;
-  }
-}
-
-async function safeResponseText(response: Response): Promise<string | undefined> {
-  try {
-    return await response.text();
-  } catch {
-    return undefined;
   }
 }
 

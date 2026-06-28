@@ -5,6 +5,7 @@ import { FindingStatus } from '../../core/models/common.js';
 import { generateFingerprint } from '../../utils/hash.js';
 import { mapFields } from '../../core/normalization/field-mapper.js';
 import { normalizeSeverity } from '../../core/normalization/severity-mapper.js';
+import { connectionFailure } from '../connection-result.js';
 
 import { SemgrepClient, type SemgrepClientOptions } from './semgrep-client.js';
 import type { SemgrepFinding } from './semgrep-schemas.js';
@@ -158,10 +159,3 @@ function extractCweId(finding: SemgrepFinding): string | undefined {
   return undefined;
 }
 
-function connectionFailure(error: unknown, fallbackMessage: string, nextSteps: string[]): ConnectionTestResult {
-  if (error instanceof OMTError) {
-    return { valid: false, reason: error.message, suggestion: nextSteps.join(' ') };
-  }
-  const detail = error instanceof Error ? error.message : String(error);
-  return { valid: false, reason: `${fallbackMessage} ${detail}`.trim(), suggestion: nextSteps.join(' ') };
-}

@@ -5,6 +5,7 @@ import { FindingStatus } from '../../core/models/common.js';
 import { generateFingerprint } from '../../utils/hash.js';
 import { mapFields } from '../../core/normalization/field-mapper.js';
 import { normalizeSeverity } from '../../core/normalization/severity-mapper.js';
+import { connectionFailure } from '../connection-result.js';
 import { SocketClient, type SocketClientOptions } from './socket-client.js';
 import type { SocketAlert } from './socket-schemas.js';
 
@@ -136,10 +137,3 @@ function normalizeCweId(value: string): string | undefined {
   return match ? `CWE-${match[1]}` : undefined;
 }
 
-function connectionFailure(error: unknown, fallbackMessage: string, nextSteps: string[]): ConnectionTestResult {
-  if (error instanceof OMTError) {
-    return { valid: false, reason: error.message, suggestion: nextSteps.join(' ') };
-  }
-  const detail = error instanceof Error ? error.message : String(error);
-  return { valid: false, reason: `${fallbackMessage} ${detail}`.trim(), suggestion: nextSteps.join(' ') };
-}

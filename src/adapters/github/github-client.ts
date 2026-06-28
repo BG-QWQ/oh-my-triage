@@ -1,5 +1,6 @@
 import { ErrorCodes, OMTError } from '../../core/errors.js';
-import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
+import { toAdapterError } from '../adapter-errors.js';
+import { fetchAdapterResponse } from '../adapter-http.js';
 import {
   GitHubCodeScanningAlertPageSchema,
   GitHubAuthenticatedUserSchema,
@@ -118,28 +119,19 @@ export class GitHubClient {
   }
 
   private async request(path: string): Promise<Response> {
-    const response = await fetch(`${this.apiBaseUrl}${path}`, {
+    return fetchAdapterResponse({
+      source: 'GitHub',
+      baseUrl: this.apiBaseUrl,
+      path,
+      token: this.token,
+      accept: 'application/vnd.github+json',
+      authorizationScheme: 'Bearer',
       headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${this.token}`,
-        'User-Agent': 'oh-my-triage/0.1',
         'X-GitHub-Api-Version': '2022-11-28',
       },
+      requiredScopes: REQUIRED_SCOPES,
+      observedScopes: (response) => parseScopes(response.headers.get('x-oauth-scopes')),
     });
-
-    if (!response.ok) {
-      const body = await safeResponseText(response);
-      throw createHttpAdapterError({
-        source: 'GitHub',
-        status: response.status,
-        statusText: response.statusText,
-        body,
-        requiredScopes: REQUIRED_SCOPES,
-        observedScopes: parseScopes(response.headers.get('x-oauth-scopes')),
-      });
-    }
-
-    return response;
   }
 }
 
@@ -162,10 +154,3 @@ export function missingRequiredScopes(observedScopes: string[], requiredScopes: 
   return requiredScopes.filter((scope) => !observedScopes.includes(scope));
 }
 
-async function safeResponseText(response: Response): Promise<string | undefined> {
-  try {
-    return await response.text();
-  } catch {
-    return undefined;
-  }
-}

@@ -1,10 +1,10 @@
 import type { AdapterFetchResult, BaseAdapter, ConnectionTestResult } from '../base-adapter.js';
-import { OMTError } from '../../core/errors.js';
 import type { Finding } from '../../core/models/finding.js';
 import { FindingStatus } from '../../core/models/common.js';
 import { generateFingerprint } from '../../utils/hash.js';
 import { mapFields } from '../../core/normalization/field-mapper.js';
 import { normalizeSeverity } from '../../core/normalization/severity-mapper.js';
+import { connectionFailure } from '../connection-result.js';
 import { GitHubClient, type GitHubClientOptions, type GitHubConnectionValidation } from './github-client.js';
 import type { GitHubCodeScanningAlert, GitHubRepository } from './github-schemas.js';
 
@@ -180,19 +180,3 @@ function owaspFromTags(tags?: string[] | null): string | undefined {
   return tags?.find((tag) => /^OWASP/i.test(tag));
 }
 
-/**
- * Build a connection-test failure result with step-specific guidance.
- *
- * Preserves the original HTTP error message from `OMTError` so the
- * user sees the exact GitHub response, but overrides the suggestion with
- * next steps tailored to which step (token validation vs repository listing)
- * failed. For non-OMTError failures (e.g. Zod validation, network),
- * the fallback message prefixes the error detail.
- */
-function connectionFailure(error: unknown, fallbackMessage: string, nextSteps: string[]): ConnectionTestResult {
-  if (error instanceof OMTError) {
-    return { valid: false, reason: error.message, suggestion: nextSteps.join(' ') };
-  }
-  const detail = error instanceof Error ? error.message : String(error);
-  return { valid: false, reason: `${fallbackMessage} ${detail}`.trim(), suggestion: nextSteps.join(' ') };
-}

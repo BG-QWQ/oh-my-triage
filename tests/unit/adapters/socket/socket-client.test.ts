@@ -16,6 +16,7 @@ describe('SocketClient', () => {
       'https://api.socket.dev/v0/organizations',
       expect.objectContaining({
         headers: expect.objectContaining({
+          Accept: 'application/json',
           Authorization: 'Bearer token-123',
           'User-Agent': 'oh-my-triage/0.1',
         }),
@@ -34,6 +35,7 @@ describe('SocketClient', () => {
       'https://api.socket.dev/v0/orgs/acme/alerts?per_page=1000',
       expect.objectContaining({
         headers: expect.objectContaining({
+          Accept: 'application/json',
           Authorization: 'Bearer token-123',
           'User-Agent': 'oh-my-triage/0.1',
         }),

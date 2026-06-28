@@ -18,6 +18,7 @@ describe('SemgrepClient', () => {
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({
+          Accept: 'application/json',
           Authorization: 'Bearer token-123',
           'User-Agent': 'oh-my-triage/0.1',
         }),
@@ -36,6 +37,7 @@ describe('SemgrepClient', () => {
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({
+          Accept: 'application/json',
           Authorization: 'Bearer token-123',
           'User-Agent': 'oh-my-triage/0.1',
         }),

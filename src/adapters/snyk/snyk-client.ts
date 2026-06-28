@@ -1,5 +1,6 @@
 import { ErrorCodes } from '../../core/errors.js';
-import { createHttpAdapterError, toAdapterError } from '../adapter-errors.js';
+import { toAdapterError } from '../adapter-errors.js';
+import { fetchAdapterResponse } from '../adapter-http.js';
 import {
   SnykIssuesResponseSchema,
   SnykOrganizationsResponseSchema,
@@ -136,25 +137,14 @@ export class SnykClient {
   }
 
   private async request(path: string): Promise<Response> {
-    const response = await fetch(`${this.apiBaseUrl}${path}`, {
-      headers: {
-        Accept: 'application/vnd.api+json',
-        Authorization: `token ${this.token}`,
-        'User-Agent': 'oh-my-triage/0.1',
-      },
+    return fetchAdapterResponse({
+      source: 'Snyk',
+      baseUrl: this.apiBaseUrl,
+      path,
+      token: this.token,
+      accept: 'application/vnd.api+json',
+      authorizationScheme: 'token',
     });
-
-    if (!response.ok) {
-      const body = await safeResponseText(response);
-      throw createHttpAdapterError({
-        source: 'Snyk',
-        status: response.status,
-        statusText: response.statusText,
-        body,
-      });
-    }
-
-    return response;
   }
 }
 
@@ -172,10 +162,3 @@ function parseNextCursor(nextUrl?: string): string | undefined {
   }
 }
 
-async function safeResponseText(response: Response): Promise<string | undefined> {
-  try {
-    return await response.text();
-  } catch {
-    return undefined;
-  }
-}
