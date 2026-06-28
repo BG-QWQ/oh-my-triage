@@ -305,6 +305,36 @@
           <p class="form-hint">Required to scope Semgrep findings during sync. Open your Semgrep dashboard and copy the URL segment after <code>/orgs/</code>; for example, <code>https://semgrep.dev/orgs/example-org/projects/scanning</code> uses <code>example-org</code>.</p>
         </div>
 
+        <fieldset class="form-group">
+          <legend id="semgrep-issue-type-label">Finding Types</legend>
+          <div id="semgrep-issue-type-options" class="radio-group" aria-labelledby="semgrep-issue-type-label">
+            <label class="radio-option selected">
+              <input type="radio" name="semgrep-issue-type" value="both" checked>
+              <div>
+                <div class="radio-label">Code + Supply Chain</div>
+                <div class="radio-desc">Create separate Semgrep sources for SAST and dependency findings. Recommended.</div>
+              </div>
+            </label>
+
+            <label class="radio-option">
+              <input type="radio" name="semgrep-issue-type" value="sast">
+              <div>
+                <div class="radio-label">Code only</div>
+                <div class="radio-desc">Import Semgrep Code findings with <code>issue_type=sast</code>.</div>
+              </div>
+            </label>
+
+            <label class="radio-option">
+              <input type="radio" name="semgrep-issue-type" value="sca">
+              <div>
+                <div class="radio-label">Supply Chain only</div>
+                <div class="radio-desc">Import Semgrep Supply Chain dependency findings with <code>issue_type=sca</code>.</div>
+              </div>
+            </label>
+          </div>
+          <p class="form-hint">Semgrep serves Supply Chain findings from a separate API mode, so selecting both writes two scanner sources that share the same token and deployment.</p>
+        </fieldset>
+
         <div class="form-group">
           <button type="button" class="btn btn-secondary" id="test-semgrep-connection">
             <span class="spinner" style="display:none;"></span>

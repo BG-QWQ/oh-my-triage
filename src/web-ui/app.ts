@@ -44,6 +44,15 @@ const STEPS = [
 
 type StepId = (typeof STEPS)[number];
 
+export type SemgrepIssueTypeSelection = 'sast' | 'sca' | 'both';
+
+/** Semgrep setup values collected by the browser wizard. */
+export type SemgrepSetupConfig = {
+  readonly token?: string;
+  readonly deployment?: string;
+  readonly issueType: SemgrepIssueTypeSelection;
+};
+
 const SCANNER_CONFIG_STEPS: Array<{ scanner: ScannerType; step: StepId }> = [
   { scanner: 'sarif', step: 'sarif-config' },
   { scanner: 'github', step: 'github-config' },
@@ -71,6 +80,7 @@ interface WizardState {
   snykOrganization: string;
   semgrepToken: string;
   semgrepDeployment: string;
+  semgrepIssueType: SemgrepIssueTypeSelection;
   tokenStorage: TokenStorage;
   connectionResults: Map<ScannerType, TestConnectionResponse>;
   mcpClients: McpClientDetection | null;
@@ -97,6 +107,7 @@ const state: WizardState = {
   snykOrganization: '',
   semgrepToken: '',
   semgrepDeployment: '',
+  semgrepIssueType: 'both',
   tokenStorage: 'keychain',
   connectionResults: new Map(),
   mcpClients: null,
@@ -711,6 +722,7 @@ async function handleSnykConnectionTest(testBtn: HTMLButtonElement, statusContai
 function initSemgrepConfigStep(): void {
   const tokenInput = $<HTMLInputElement>('#semgrep-token');
   const deploymentInput = $<HTMLInputElement>('#semgrep-deployment');
+  const issueTypeOptions = $$<HTMLElement>('#semgrep-issue-type-options .radio-option');
   const statusContainer = $<HTMLElement>('#semgrep-status');
 
   tokenInput.value = state.semgrepToken;
@@ -730,6 +742,22 @@ function initSemgrepConfigStep(): void {
 
   deploymentInput.addEventListener('input', () => {
     state.semgrepDeployment = deploymentInput.value.trim();
+  });
+
+  issueTypeOptions.forEach((option) => {
+    const input = option.querySelector<HTMLInputElement>('input[type="radio"]');
+    if (!input) return;
+
+    option.classList.toggle('selected', input.value === state.semgrepIssueType);
+    input.checked = input.value === state.semgrepIssueType;
+
+    option.addEventListener('click', () => {
+      issueTypeOptions.forEach((otherOption) => otherOption.classList.remove('selected'));
+      option.classList.add('selected');
+      input.checked = true;
+      state.semgrepIssueType = input.value as SemgrepIssueTypeSelection;
+      state.setupSaved = false;
+    });
   });
 
   // Test connection
@@ -777,7 +805,7 @@ async function handleSemgrepConnectionTest(testBtn: HTMLButtonElement, statusCon
 // ── Step: Security settings ──────────────────────────────────────────
 
 function initSecuritySettingsStep(): void {
-  const radioOptions = $$('.radio-option');
+  const radioOptions = $$<HTMLElement>('[data-step="security-settings"] .radio-option');
   radioOptions.forEach((option) => {
     const input = option.querySelector<HTMLInputElement>('input[type="radio"]');
     if (!input) return;
@@ -868,19 +896,50 @@ function buildSetupSources(): SaveSetupSource[] {
   }
 
   if (state.selectedScanners.has('semgrep')) {
-    sources.push({
-      id: 'semgrep',
-      type: 'semgrep',
-      name: 'Semgrep',
-      enabled: true,
+    sources.push(...buildSemgrepSetupSources({
       token: state.semgrepToken || undefined,
-      options: {
-        deployment: state.semgrepDeployment || undefined,
-      },
-    });
+      deployment: state.semgrepDeployment || undefined,
+      issueType: state.semgrepIssueType,
+    }));
   }
 
   return sources;
+}
+
+/**
+ * Build Semgrep setup sources for one selected issue-type mode.
+ *
+ * Semgrep's API returns Code findings by default and requires `issue_type=sca`
+ * for Supply Chain findings. Separate sources keep stale-state isolation stable
+ * when the user wants both result sets from the same deployment.
+ */
+export function buildSemgrepSetupSources(config: SemgrepSetupConfig): SaveSetupSource[] {
+  if (config.issueType === 'both') {
+    return [
+      semgrepSetupSource({ ...config, issueType: 'sast' }),
+      {
+        ...semgrepSetupSource({ ...config, issueType: 'sca' }),
+        id: 'semgrep-supply-chain',
+      },
+    ];
+  }
+
+  return [semgrepSetupSource({ ...config, issueType: config.issueType })];
+}
+
+function semgrepSetupSource(config: Omit<SemgrepSetupConfig, 'issueType'> & { readonly issueType: 'sast' | 'sca' }): SaveSetupSource {
+  const isSupplyChain = config.issueType === 'sca';
+  return {
+    id: 'semgrep',
+    type: 'semgrep',
+    name: isSupplyChain ? 'Semgrep Supply Chain' : 'Semgrep Code',
+    enabled: true,
+    token: config.token,
+    options: {
+      deployment: config.deployment,
+      issue_type: config.issueType,
+    },
+  };
 }
 
 /** Persist the wizard setup state through the local setup API. */
