@@ -21,6 +21,16 @@ Or set directly:
 oh-my-triage config set-token semgrep
 ```
 
+### 3. Find the deployment slug
+
+Open your Semgrep dashboard and copy the URL segment after `/orgs/`. For example, this URL uses the deployment slug `example-org`:
+
+```text
+https://semgrep.dev/orgs/example-org/projects/scanning
+```
+
+Use that value as `options.deployment` or `deployment_slug` when configuring Semgrep. The URL example is intentionally anonymized; do not paste private organization names into public issues or docs.
+
 ## Token Validation
 
 oh-my-triage validates your token by:
@@ -72,7 +82,7 @@ You can also configure `issue_type` as `"sast"` (default) or `"sca"`.
 | Error | Solution |
 |-------|----------|
 | Invalid token | Generate a new Semgrep API token |
-| Missing deployment slug | Save `options.deployment` or pass `deployment_slug` |
+| Missing deployment slug | Copy the segment after `/orgs/` from a Semgrep dashboard URL, then save it as `options.deployment` or pass `deployment_slug` |
 | 404 on findings | Confirm the token has the **Web API** scope (CLI/CI tokens will not work) |
 | No deployments found | Verify the token belongs to the expected Semgrep organization |
 
