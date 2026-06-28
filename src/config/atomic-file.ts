@@ -2,6 +2,9 @@ import { copyFile, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:
 import { dirname, basename, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 
+/** Maximum number of timestamped backup files to retain for any target. */
+const MAX_BACKUP_FILES = 5;
+
 /** Options controlling atomic file writes and backup behavior. */
 export type AtomicWriteOptions = {
   /** When true and the target file already exists, copy it to a timestamped backup before replacing. */
@@ -34,6 +37,47 @@ function backupPath(targetPath: string): string {
   return `${targetPath}.bak-${timestamp}`;
 }
 
+/** Return the filename prefix used to identify backups of targetPath. */
+function backupPrefix(targetPath: string): string {
+  return `${basename(targetPath)}.bak-`;
+}
+
+/** List matching backup paths for targetPath, newest first.
+ *
+ * Backup names include a lexicographically sortable ISO timestamp, so a
+ * simple sort + reverse yields the correct age order without parsing dates.
+ */
+async function listBackupPaths(targetPath: string): Promise<string[]> {
+  const dir = dirname(targetPath);
+  const prefix = backupPrefix(targetPath);
+
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch (error: unknown) {
+    if (isEnoent(error)) {
+      return [];
+    }
+    throw error;
+  }
+
+  return entries
+    .filter((name) => name.startsWith(prefix))
+    .sort()
+    .reverse()
+    .map((name) => join(dir, name));
+}
+
+/** Remove oldest backups so no more than MAX_BACKUP_FILES remain. */
+async function rotateBackups(targetPath: string): Promise<void> {
+  const backups = await listBackupPaths(targetPath);
+  const toRemove = backups.slice(MAX_BACKUP_FILES);
+
+  for (const path of toRemove) {
+    await rm(path, { force: true });
+  }
+}
+
 /** Write content to targetPath atomically using a same-directory temp file and rename.
  *
  * The target is never in a partially-written state: readers either see the old
@@ -62,6 +106,7 @@ export async function writeFileAtomically(
   if (options.backup && content.trim()) {
     const destination = backupPath(targetPath);
     await copyFile(targetPath, destination);
+    await rotateBackups(targetPath);
   }
 }
 
@@ -74,6 +119,7 @@ export async function createBackup(targetPath: string): Promise<string | undefin
     }
     const destination = backupPath(targetPath);
     await copyFile(targetPath, destination);
+    await rotateBackups(targetPath);
     return destination;
   } catch (error: unknown) {
     if (isEnoent(error)) {
@@ -134,26 +180,7 @@ function isEnoent(error: unknown): boolean {
 
 /** Find the newest backup file matching targetPath's backup prefix. */
 export async function findNewestBackup(targetPath: string): Promise<string | undefined> {
-  const dir = dirname(targetPath);
-  const base = basename(targetPath);
-  const prefix = `${base}.bak-`;
-
-  let entries: string[];
-  try {
-    entries = await readdir(dir);
-  } catch (error: unknown) {
-    if (isEnoent(error)) {
-      return undefined;
-    }
-    throw error;
-  }
-
-  const backups = entries
-    .filter((name) => name.startsWith(prefix))
-    .sort()
-    .reverse()
-    .map((name) => join(dir, name));
-
+  const backups = await listBackupPaths(targetPath);
   return backups[0];
 }
 
