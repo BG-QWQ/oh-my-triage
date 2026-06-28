@@ -67,7 +67,7 @@ describe('handleApiRequest', () => {
     expect(handled).toBe(true);
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain('"status":"ok"');
-    expect(response.body).toContain('"version":"0.1.2"');
+    expect(response.body).toContain('"version":"0.2.0"');
   });
 
   it('returns structured CONFIG_INVALID when the config file is corrupt', async () => {

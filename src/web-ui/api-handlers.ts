@@ -692,7 +692,7 @@ async function handleStartServer(_req: IncomingMessage, res: ServerResponse): Pr
 async function handleHealth(_req: IncomingMessage, res: ServerResponse): Promise<void> {
   sendJson(res, 200, {
     status: 'ok',
-    version: '0.1.2',
+      version: '0.2.0',
     uptime: process.uptime(),
   });
 }

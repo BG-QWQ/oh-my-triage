@@ -3,6 +3,6 @@ import { VERSION } from '../../src/utils/version.js';
 
 describe('skeleton', () => {
   it('exports VERSION', () => {
-    expect(VERSION).toBe('0.1.2');
+    expect(VERSION).toBe('0.2.0');
   });
 });

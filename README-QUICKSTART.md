@@ -6,9 +6,9 @@
 
 Download the latest release for your platform:
 
-- **Windows**: `oh-my-triage-v0.1.2-windows-x64.zip` (extract and run `oh-my-triage.cmd`)
-- **macOS**: `oh-my-triage-v0.1.2-macos-arm64` (Apple Silicon) or `-x64` (Intel)
-- **Linux**: `oh-my-triage-v0.1.2-linux-x64`
+- **Windows**: `oh-my-triage-v0.2.0-windows-x64.zip` (extract and run `oh-my-triage.cmd`)
+- **macOS**: `oh-my-triage-v0.2.0-macos-arm64` (Apple Silicon) or `-x64` (Intel)
+- **Linux**: `oh-my-triage-v0.2.0-linux-x64`
 
 No Node.js installation required.
 
