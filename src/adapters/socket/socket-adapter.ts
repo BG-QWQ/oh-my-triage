@@ -5,7 +5,7 @@ import { FindingStatus } from '../../core/models/common.js';
 import { generateFingerprint } from '../../utils/hash.js';
 import { mapFields } from '../../core/normalization/field-mapper.js';
 import { normalizeSeverity } from '../../core/normalization/severity-mapper.js';
-import { connectionFailure } from '../connection-result.js';
+import { testConnectionByListingOrganizations } from '../connection-result.js';
 import { SocketClient, type SocketClientOptions } from './socket-client.js';
 import type { SocketAlert } from './socket-schemas.js';
 
@@ -35,19 +35,10 @@ export class SocketAdapter implements BaseAdapter {
 
   /** Validate the Socket.dev token and report how many organizations are visible. */
   async testConnection(): Promise<ConnectionTestResult> {
-    try {
-      const result = await this.client.listOrganizations();
-      return {
-        valid: true,
-        reason: `Socket.dev token validated and ${result.organizations.length} organization(s) are visible.`,
-        orgs_found: result.organizations.length,
-      };
-    } catch (error: unknown) {
-      return connectionFailure(error, 'Socket.dev connection test failed.', [
-        'Verify the Socket.dev token is active.',
-        'Confirm the token can list organizations.',
-      ]);
-    }
+    return testConnectionByListingOrganizations('Socket.dev', () => this.client.listOrganizations(), [
+      'Verify the Socket.dev token is active.',
+      'Confirm the token can list organizations.',
+    ]);
   }
 
   /** Fetch a page of Socket.dev alerts using cursor-based pagination. */

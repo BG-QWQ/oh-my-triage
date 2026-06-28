@@ -3,6 +3,7 @@ import { redactSecrets } from '../utils/redaction.js';
 import { createHttpAdapterError } from './adapter-errors.js';
 
 type AuthorizationScheme = 'Bearer' | 'token';
+type HeaderRecord = Record<string, string>;
 
 /** Configure one scanner adapter HTTP request.
  *
@@ -25,6 +26,89 @@ export type AdapterRequestOptions = {
   readonly observedScopes?: (response: Response) => readonly string[];
 };
 
+/** Build a scanner API URL that tolerates inconsistent leading/trailing slashes.
+ *
+ * Adapter callers often assemble paths from constants and runtime values; requiring
+ * every caller to manage slashes is error-prone and duplicates trivial logic.
+ */
+function buildAdapterUrl(baseUrl: string, path: string): string {
+  const trimmedBase = trimTrailingSlashes(baseUrl);
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${trimmedBase}${normalizedPath}`;
+}
+
+/** Remove trailing slashes without a regex to avoid backtracking. */
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
+/** Map well-known lowercase header names back to canonical casing.
+ *
+ * Header names are case-insensitive per RFC 7230, but preserving the
+ * conventional capitalization keeps adapter tests and debug output readable.
+ */
+const CANONICAL_HEADER_NAMES: Record<string, string> = {
+  accept: 'Accept',
+  authorization: 'Authorization',
+  'content-type': 'Content-Type',
+  'user-agent': 'User-Agent',
+  'x-github-api-version': 'X-GitHub-Api-Version',
+};
+
+function normalizeHeaderName(name: string): string {
+  const lower = name.toLowerCase();
+  if (CANONICAL_HEADER_NAMES[lower]) {
+    return CANONICAL_HEADER_NAMES[lower];
+  }
+
+  if (lower.startsWith('x-')) {
+    return 'X-' + lower.slice(2).split('-').map(capitalizeHeaderSegment).join('-');
+  }
+
+  return name;
+}
+
+function capitalizeHeaderSegment(segment: string): string {
+  return segment.length === 0 ? segment : segment[0].toUpperCase() + segment.slice(1);
+}
+
+/** Merge adapter headers while preserving the intended precedence.
+ *
+ * Native `Headers` handles case-insensitive names and all `HeadersInit` shapes
+ * (plain objects, `Headers` instances, and tuple arrays). The final plain
+ * record keeps existing fetch mock assertions stable while avoiding the
+ * complexity of manual type-checking and normalization.
+ */
+function buildAdapterHeaders(options: AdapterRequestOptions): HeaderRecord {
+  const headers = new Headers({
+    Accept: options.accept,
+    Authorization: `${options.authorizationScheme} ${options.token}`,
+    'User-Agent': 'oh-my-triage/0.1',
+  });
+
+  if (options.init?.headers) {
+    new Headers(options.init.headers).forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
+  if (options.headers) {
+    new Headers(options.headers).forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+
+  const record: HeaderRecord = {};
+  headers.forEach((value, key) => {
+    record[normalizeHeaderName(key)] = value;
+  });
+  return record;
+}
+
 /** Fetch a scanner API response with the standard oh-my-triage adapter headers.
  *
  * Non-2xx responses are converted into actionable `OMTError` instances after
@@ -36,15 +120,9 @@ export type AdapterRequestOptions = {
  * @throws TypeError when the underlying fetch implementation fails before an HTTP response is available.
  */
 export async function fetchAdapterResponse(options: AdapterRequestOptions): Promise<Response> {
-  const response = await fetch(`${options.baseUrl}${options.path}`, {
+  const response = await fetch(buildAdapterUrl(options.baseUrl, options.path), {
     ...options.init,
-    headers: {
-      Accept: options.accept,
-      Authorization: `${options.authorizationScheme} ${options.token}`,
-      'User-Agent': 'oh-my-triage/0.1',
-      ...options.init?.headers,
-      ...options.headers,
-    },
+    headers: buildAdapterHeaders(options),
   });
 
   if (response.ok) {
@@ -83,9 +161,18 @@ export async function readResponseTextSafely(response: Response): Promise<string
   }
 }
 
-function redactToken(body: string | undefined, token: string): string | undefined {
+/** Redact a scanner token from an HTTP response body.
+ *
+ * Empty or whitespace-only tokens are rejected because splitting a body by an
+ * empty string would insert a redaction marker between every character.
+ */
+export function redactToken(body: string | undefined, token: string): string | undefined {
   if (!body) {
     return undefined;
+  }
+
+  if (!token || token.trim().length === 0) {
+    return redactSecrets(body);
   }
 
   return redactSecrets(body.split(token).join('***REDACTED***'));

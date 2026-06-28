@@ -5,7 +5,7 @@ import { FindingStatus } from '../../core/models/common.js';
 import { generateFingerprint } from '../../utils/hash.js';
 import { mapFields } from '../../core/normalization/field-mapper.js';
 import { normalizeSeverity } from '../../core/normalization/severity-mapper.js';
-import { connectionFailure } from '../connection-result.js';
+import { testConnectionByListingOrganizations } from '../connection-result.js';
 
 import { SnykClient, type SnykClientOptions } from './snyk-client.js';
 import type { SnykIssue } from './snyk-schemas.js';
@@ -36,19 +36,10 @@ export class SnykAdapter implements BaseAdapter {
 
   /** Validate the Snyk token and report how many organizations are visible. */
   async testConnection(): Promise<ConnectionTestResult> {
-    try {
-      const result = await this.client.listOrganizations();
-      return {
-        valid: true,
-        reason: `Snyk token validated and ${result.organizations.length} organization(s) are visible.`,
-        orgs_found: result.organizations.length,
-      };
-    } catch (error: unknown) {
-      return connectionFailure(error, 'Snyk connection test failed.', [
-        'Verify the Snyk token is active.',
-        'Confirm the token has REST API read access.',
-      ]);
-    }
+    return testConnectionByListingOrganizations('Snyk', () => this.client.listOrganizations(), [
+      'Verify the Snyk token is active.',
+      'Confirm the token has REST API read access.',
+    ]);
   }
 
   /** Fetch a page of Snyk issues using cursor-based pagination.
