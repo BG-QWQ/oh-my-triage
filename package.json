@@ -28,7 +28,7 @@
     "mcp:inspect": "echo 'Run MCP Inspector against stdio transport'"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.19.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
