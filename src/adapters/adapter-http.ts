@@ -32,9 +32,18 @@ export type AdapterRequestOptions = {
  * every caller to manage slashes is error-prone and duplicates trivial logic.
  */
 function buildAdapterUrl(baseUrl: string, path: string): string {
-  const trimmedBase = baseUrl.replace(/\/+$/, '');
+  const trimmedBase = trimTrailingSlashes(baseUrl);
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${trimmedBase}${normalizedPath}`;
+}
+
+/** Remove trailing slashes without a regex to avoid backtracking. */
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === '/') {
+    end -= 1;
+  }
+  return value.slice(0, end);
 }
 
 /** Map well-known lowercase header names back to canonical casing.
