@@ -53,6 +53,43 @@ export type SemgrepSetupConfig = {
   readonly issueType: SemgrepIssueTypeSelection;
 };
 
+/** Minimal native input contract used by reusable card-selection binders. */
+export type SelectableInput = Pick<HTMLInputElement, 'checked' | 'value' | 'addEventListener'>;
+
+/** Minimal card contract for toggling design-system selection state. */
+export type SelectableCard = {
+  readonly classList: Pick<DOMTokenList, 'toggle'>;
+};
+
+/** Minimal radio-card contract for native-input synchronization. */
+export type RadioOptionElement = SelectableCard & {
+  readonly querySelector: (selector: string) => SelectableInput | null;
+};
+
+/** Minimal radio-card group contract used by dynamic option binders. */
+export type RadioOptionGroup = {
+  readonly querySelectorAll: (selector: string) => ArrayLike<RadioOptionElement>;
+  readonly querySelector: (selector: string) => SelectableInput | null;
+};
+
+function radioOptionElementsFromGroup(group: RadioOptionGroup): RadioOptionElement[] {
+  return Array.from(group.querySelectorAll('.radio-option'));
+}
+
+function radioOptionGroup(element: Element): RadioOptionGroup {
+  return {
+    querySelectorAll: (selector: string) => radioOptionElements(element.querySelectorAll<HTMLElement>(selector)),
+    querySelector: (selector: string) => element.querySelector<HTMLInputElement>(selector),
+  };
+}
+
+function radioOptionElements(options: ArrayLike<HTMLElement>): RadioOptionElement[] {
+  return Array.from(options).map((option) => ({
+    classList: option.classList,
+    querySelector: (selector: string) => option.querySelector<HTMLInputElement>(selector),
+  }));
+}
+
 const SCANNER_CONFIG_STEPS: Array<{ scanner: ScannerType; step: StepId }> = [
   { scanner: 'sarif', step: 'sarif-config' },
   { scanner: 'github', step: 'github-config' },
@@ -370,6 +407,8 @@ function updateNavButtons(): void {
 // ── Step: Welcome ─────────────────────────────────────────────────────
 
 function initWelcomeStep(): void {
+  bindWelcomeStartButton($<HTMLButtonElement>('#btn-get-started'), goToStep);
+
   // Load current setup status
   const statusContainer = $<HTMLElement>('#welcome-status');
   showLoading(statusContainer, 'Checking setup status...');
@@ -398,6 +437,112 @@ function initWelcomeStep(): void {
     });
 }
 
+/** Bind the welcome call-to-action to the first configuration step.
+ *
+ * The landing CTA is the beginner path into setup, while the footer Continue
+ * button remains available for keyboard users who expect global navigation.
+ */
+export function bindWelcomeStartButton(button: EventTarget, navigate: (step: 'scanner-select') => void): void {
+  button.addEventListener('click', () => {
+    navigate('scanner-select');
+  });
+}
+
+function scannerTypeFromValue(value: string): ScannerType {
+  switch (value) {
+    case 'sarif':
+    case 'github':
+    case 'sonarcloud':
+    case 'socket':
+    case 'snyk':
+    case 'semgrep':
+      return value;
+  }
+
+  throw new Error(`Unknown scanner type: ${value}`);
+}
+
+function semgrepIssueTypeFromValue(value: string): SemgrepIssueTypeSelection {
+  switch (value) {
+    case 'sast':
+    case 'sca':
+    case 'both':
+      return value;
+  }
+
+  throw new Error(`Unknown Semgrep issue type: ${value}`);
+}
+
+function tokenStorageFromValue(value: string): TokenStorage {
+  switch (value) {
+    case 'keychain':
+    case 'env':
+    case 'encrypted-file':
+      return value;
+  }
+
+  throw new Error(`Unknown token storage: ${value}`);
+}
+
+/** Synchronize a selectable card from its native checkbox state. */
+export function syncScannerCardSelection(input: SelectableInput, card: SelectableCard, selectedScanners: Set<ScannerType>): void {
+  const scannerType = scannerTypeFromValue(input.value);
+  card.classList.toggle('selected', input.checked);
+
+  if (input.checked) {
+    selectedScanners.add(scannerType);
+  } else {
+    selectedScanners.delete(scannerType);
+  }
+}
+
+/** Bind a selectable scanner card through the native checkbox change event. */
+export function bindScannerCardSelection(input: SelectableInput, card: SelectableCard, selectedScanners: Set<ScannerType>): void {
+  input.checked = selectedScanners.has(scannerTypeFromValue(input.value));
+  syncScannerCardSelection(input, card, selectedScanners);
+
+  input.addEventListener('change', () => {
+    syncScannerCardSelection(input, card, selectedScanners);
+  });
+}
+
+/** Synchronize a radio-card group from the checked native radio input. */
+export function syncRadioOptionSelection(options: readonly RadioOptionElement[]): SelectableInput | null {
+  let selectedInput: SelectableInput | null = null;
+
+  for (const option of options) {
+    const input = option.querySelector('input[type="radio"]');
+    const selected = Boolean(input?.checked);
+    option.classList.toggle('selected', selected);
+    if (input?.checked) {
+      selectedInput = input;
+    }
+  }
+
+  return selectedInput;
+}
+
+/** Bind radio-card options through native radio change events. */
+export function bindRadioOptionSelection(
+  options: readonly RadioOptionElement[],
+  isSelected: (input: SelectableInput) => boolean,
+  onSelection: (input: SelectableInput) => void
+): void {
+  for (const option of options) {
+    const input = option.querySelector('input[type="radio"]');
+    if (!input) continue;
+
+    input.checked = isSelected(input);
+    input.addEventListener('change', () => {
+      if (!input.checked) return;
+      syncRadioOptionSelection(options);
+      onSelection(input);
+    });
+  }
+
+  syncRadioOptionSelection(options);
+}
+
 // ── Step: Scanner selection ──────────────────────────────────────────
 
 function initScannerSelectStep(): void {
@@ -406,21 +551,7 @@ function initScannerSelectStep(): void {
     const input = card.querySelector<HTMLInputElement>('input[type="checkbox"]');
     if (!input) return;
 
-    // Restore previous selection
-    if (state.selectedScanners.has(input.value as ScannerType)) {
-      card.classList.add('selected');
-    }
-
-    card.addEventListener('click', () => {
-      input.checked = !input.checked;
-      card.classList.toggle('selected', input.checked);
-
-      if (input.checked) {
-        state.selectedScanners.add(input.value as ScannerType);
-      } else {
-        state.selectedScanners.delete(input.value as ScannerType);
-      }
-    });
+    bindScannerCardSelection(input, card, state.selectedScanners);
   });
 }
 
@@ -718,21 +849,14 @@ function initSemgrepConfigStep(): void {
   bindTrimmedInput(tokenInput, (value) => { state.semgrepToken = value; });
   bindTrimmedInput(deploymentInput, (value) => { state.semgrepDeployment = value; });
 
-  issueTypeOptions.forEach((option) => {
-    const input = option.querySelector<HTMLInputElement>('input[type="radio"]');
-    if (!input) return;
-
-    option.classList.toggle('selected', input.value === state.semgrepIssueType);
-    input.checked = input.value === state.semgrepIssueType;
-
-    option.addEventListener('click', () => {
-      issueTypeOptions.forEach((otherOption) => otherOption.classList.remove('selected'));
-      option.classList.add('selected');
-      input.checked = true;
-      state.semgrepIssueType = input.value as SemgrepIssueTypeSelection;
+  bindRadioOptionSelection(
+    radioOptionElements(issueTypeOptions),
+    (input) => input.value === state.semgrepIssueType,
+    (input) => {
+      state.semgrepIssueType = semgrepIssueTypeFromValue(input.value);
       state.setupSaved = false;
-    });
-  });
+    }
+  );
 
   // Test connection
   const testBtn = $<HTMLButtonElement>('#test-semgrep-connection');
@@ -764,22 +888,14 @@ async function handleSemgrepConnectionTest(testBtn: HTMLButtonElement, statusCon
 
 function initSecuritySettingsStep(): void {
   const radioOptions = $$<HTMLElement>('[data-step="security-settings"] .radio-option');
-  radioOptions.forEach((option) => {
-    const input = option.querySelector<HTMLInputElement>('input[type="radio"]');
-    if (!input) return;
-
-    if (input.value === state.tokenStorage) {
-      option.classList.add('selected');
-    }
-
-    option.addEventListener('click', () => {
-      radioOptions.forEach((o) => o.classList.remove('selected'));
-      option.classList.add('selected');
-      input.checked = true;
-      state.tokenStorage = input.value as TokenStorage;
+  bindRadioOptionSelection(
+    radioOptionElements(radioOptions),
+    (input) => input.value === state.tokenStorage,
+    (input) => {
+      state.tokenStorage = tokenStorageFromValue(input.value);
       state.setupSaved = false;
-    });
-  });
+    }
+  );
 }
 
 /** Build the setup persistence payload from the current wizard state. */
@@ -965,6 +1081,7 @@ function initMcpConfigStep(): void {
       for (const client of detection.clients) {
         renderMcpClientOption(clientList, client);
       }
+      bindMcpClientOptions(radioOptionGroup(clientList));
 
       showStatus(statusContainer, 'success', `Found ${detection.clients.length} MCP client(s).`);
     })
@@ -988,29 +1105,46 @@ function initMcpConfigStep(): void {
 
 /** Render one selectable MCP client row. */
 function renderMcpClientOption(clientList: HTMLElement, client: McpClientDetection['clients'][number]): void {
-  const div = document.createElement('div');
-  div.className = 'radio-option';
-  div.innerHTML = `
+  const option = document.createElement('label');
+  option.className = 'radio-option';
+  option.innerHTML = `
     <input type="radio" name="mcp-client" value="${escapeHtml(client.name)}" ${client.exists ? 'checked' : ''}>
     <div>
       <div class="radio-label">${escapeHtml(client.name)}</div>
       <div class="radio-desc">${escapeHtml(client.config_path)}</div>
     </div>
   `;
-  div.addEventListener('click', () => selectMcpClient(clientList, div, client.name));
+  clientList.appendChild(option);
   if (client.exists) {
-    div.classList.add('selected');
     updateConfigPreview(client.name);
   }
-  clientList.appendChild(div);
 }
 
-/** Mark an MCP client option as selected and refresh the preview. */
-function selectMcpClient(clientList: HTMLElement, option: HTMLElement, clientName: string): void {
-  clientList.querySelectorAll('.radio-option').forEach((o) => o.classList.remove('selected'));
-  option.classList.add('selected');
-  option.querySelector<HTMLInputElement>('input[type="radio"]')!.checked = true;
-  updateConfigPreview(clientName);
+/** Bind rendered MCP client rows through native radio change events.
+ *
+ * Dynamic MCP client rows use the same radio-card primitive as static setup
+ * options, so keyboard and mouse changes must both update selected styling and
+ * the generated config preview from the native checked state.
+ */
+export function bindMcpClientOptions(clientList: RadioOptionGroup, previewClient: (clientName: string) => void = updateConfigPreview): void {
+  const selectedClient = mcpSelectedClientName(clientList);
+  bindRadioOptionSelection(
+    radioOptionElementsFromGroup(clientList),
+    (input) => input.value === selectedClient,
+    (input) => {
+      previewClient(input.value);
+    }
+  );
+}
+
+function mcpSelectedClientName(clientList: RadioOptionGroup): string {
+  const selectedClient = clientList.querySelector('input[name="mcp-client"]:checked');
+  if (selectedClient) {
+    return selectedClient.value;
+  }
+
+  const firstClient = clientList.querySelector('input[name="mcp-client"]');
+  return firstClient?.value ?? '';
 }
 
 /** Write the selected MCP client configuration. */
