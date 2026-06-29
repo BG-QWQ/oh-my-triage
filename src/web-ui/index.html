@@ -7,184 +7,138 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-container">
-    <!-- ── Sidebar ── -->
+  <div class="app-shell">
     <aside class="sidebar">
-      <div class="sidebar-brand">
-        <h1>oh-my-triage</h1>
-        <p>Connect your scanners. Let AI explain the noise.</p>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M4 20L20 4"/><path d="M4 12h16"/><path d="M12 4v16"/></svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">oh-my-triage</div>
+          <div class="brand-tagline">triage console</div>
+        </div>
       </div>
 
       <ol class="step-nav">
-        <li class="step-nav-item" data-step="welcome">
-          <span class="step-nav-number">1</span>
-          <span>Welcome</span>
-        </li>
-        <li class="step-nav-item" data-step="scanner-select">
-          <span class="step-nav-number">2</span>
-          <span>Scanners</span>
-        </li>
-        <li class="step-nav-item" data-step="sarif-config">
-          <span class="step-nav-number">3</span>
-          <span>SARIF Config</span>
-        </li>
-        <li class="step-nav-item" data-step="github-config">
-          <span class="step-nav-number">4</span>
-          <span>GitHub Config</span>
-        </li>
-        <li class="step-nav-item" data-step="sonarcloud-config">
-          <span class="step-nav-number">5</span>
-          <span>SonarCloud Config</span>
-        </li>
-        <li class="step-nav-item" data-step="socket-config">
-          <span class="step-nav-number">6</span>
-          <span>Socket Config</span>
-        </li>
-        <li class="step-nav-item" data-step="snyk-config">
-          <span class="step-nav-number">7</span>
-          <span>Snyk Config</span>
-        </li>
-        <li class="step-nav-item" data-step="semgrep-config">
-          <span class="step-nav-number">8</span>
-          <span>Semgrep Config</span>
-        </li>
-        <li class="step-nav-item" data-step="security-settings">
-          <span class="step-nav-number">9</span>
-          <span>Security</span>
-        </li>
-        <li class="step-nav-item" data-step="mcp-config">
-          <span class="step-nav-number">10</span>
-          <span>MCP Config</span>
-        </li>
-        <li class="step-nav-item" data-step="summary">
-          <span class="step-nav-number">11</span>
-          <span>Summary</span>
-        </li>
+        <li class="step-nav-item" data-step="welcome"><span class="step-nav-number">01</span><span>Welcome</span></li>
+        <li class="step-nav-item" data-step="scanner-select"><span class="step-nav-number">02</span><span>Scanners</span></li>
+        <li class="step-nav-item" data-step="sarif-config"><span class="step-nav-number">03</span><span>SARIF</span></li>
+        <li class="step-nav-item" data-step="github-config"><span class="step-nav-number">04</span><span>GitHub</span></li>
+        <li class="step-nav-item" data-step="sonarcloud-config"><span class="step-nav-number">05</span><span>SonarCloud</span></li>
+        <li class="step-nav-item" data-step="socket-config"><span class="step-nav-number">06</span><span>Socket</span></li>
+        <li class="step-nav-item" data-step="snyk-config"><span class="step-nav-number">07</span><span>Snyk</span></li>
+        <li class="step-nav-item" data-step="semgrep-config"><span class="step-nav-number">08</span><span>Semgrep</span></li>
+        <li class="step-nav-item" data-step="security-settings"><span class="step-nav-number">09</span><span>Security</span></li>
+        <li class="step-nav-item" data-step="mcp-config"><span class="step-nav-number">10</span><span>MCP</span></li>
+        <li class="step-nav-item" data-step="summary"><span class="step-nav-number">11</span><span>Summary</span></li>
       </ol>
+
+      <div class="sidebar-footer">
+        <span>v0.2.0</span>
+        <span id="connection-dot">local</span>
+      </div>
     </aside>
 
-    <!-- ── Main content ── -->
     <main class="main-content">
-
-      <!-- Step 1: Welcome -->
       <section class="step-panel active" data-step="welcome">
         <div class="welcome-hero">
-          <div class="logo">🌉</div>
-          <h2>Welcome to oh-my-triage</h2>
-          <p>
-            Set up your scanner connections, configure security preferences,
-            and generate MCP client configuration — all in a few guided steps.
-          </p>
-          <div id="welcome-status"></div>
-          <div class="btn-group" style="justify-content: center;">
-            <button class="btn btn-primary" id="btn-get-started">Get Started</button>
-          </div>
+          <div class="step-eyebrow">Setup / 01</div>
+          <h2>Configure oh-my-triage</h2>
+          <p>Connect scanner sources, choose token storage, and generate MCP client configuration. Credentials are handled by the local backend and are never left in browser storage as plaintext.</p>
+          <div class="welcome-status-wrap" id="welcome-status" aria-live="polite"></div>
+          <button class="btn btn-primary" id="btn-get-started">Start setup</button>
         </div>
       </section>
 
-      <!-- Step 2: Scanner selection -->
       <section class="step-panel" data-step="scanner-select">
-        <h2>Choose Your Scanners</h2>
-        <p class="step-subtitle">Select the scanner sources you want to connect. You can add more later.</p>
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 02</div>
+          <h2>Choose scanners</h2>
+          <p class="step-subtitle">Select the scanner sources to connect. Unselected scanners are skipped in this run, and you can add more later.</p>
+        </div>
 
-        <div class="checkbox-grid">
+        <div class="scanner-modules">
           <label class="checkbox-card" data-scanner="sarif">
             <input type="checkbox" value="sarif">
             <span class="check-indicator"></span>
-            <div class="card-icon">📄</div>
-            <div class="card-title">SARIF Files</div>
+            <div class="card-top"><span class="card-indicator"></span><span class="card-title">SARIF files</span></div>
             <div class="card-desc">Import findings from local SARIF files generated by any scanner.</div>
           </label>
 
           <label class="checkbox-card" data-scanner="github">
             <input type="checkbox" value="github">
             <span class="check-indicator"></span>
-            <div class="card-icon">🐙</div>
-            <div class="card-title">GitHub</div>
-            <div class="card-desc">Connect GitHub Code Scanning alerts from your repositories.</div>
+            <div class="card-top"><span class="card-indicator"></span><span class="card-title">GitHub Code Scanning</span></div>
+            <div class="card-desc">Connect GitHub Code Scanning alerts from repositories.</div>
           </label>
 
           <label class="checkbox-card" data-scanner="sonarcloud">
             <input type="checkbox" value="sonarcloud">
             <span class="check-indicator"></span>
-            <div class="card-icon">☁️</div>
-            <div class="card-title">SonarCloud</div>
+            <div class="card-top"><span class="card-indicator"></span><span class="card-title">SonarCloud</span></div>
             <div class="card-desc">Pull findings from SonarCloud project analysis.</div>
           </label>
 
           <label class="checkbox-card" data-scanner="socket">
             <input type="checkbox" value="socket">
             <span class="check-indicator"></span>
-            <div class="card-icon">🔌</div>
-            <div class="card-title">Socket.dev</div>
-            <div class="card-desc">Connect Socket.dev to scan open-source dependencies for risks.</div>
+            <div class="card-top"><span class="card-indicator"></span><span class="card-title">Socket.dev</span></div>
+            <div class="card-desc">Connect Socket.dev dependency risk alerts.</div>
           </label>
 
           <label class="checkbox-card" data-scanner="snyk">
             <input type="checkbox" value="snyk">
             <span class="check-indicator"></span>
-            <div class="card-icon">🛡️</div>
-            <div class="card-title">Snyk</div>
+            <div class="card-top"><span class="card-indicator"></span><span class="card-title">Snyk</span></div>
             <div class="card-desc">Import vulnerabilities from Snyk projects and container scans.</div>
           </label>
 
           <label class="checkbox-card" data-scanner="semgrep">
             <input type="checkbox" value="semgrep">
             <span class="check-indicator"></span>
-            <div class="card-icon">🔍</div>
-            <div class="card-title">Semgrep</div>
-            <div class="card-desc">Pull findings from Semgrep Code, Supply Chain, or Secrets.</div>
+            <div class="card-top"><span class="card-indicator"></span><span class="card-title">Semgrep</span></div>
+            <div class="card-desc">Pull Code, Supply Chain, or Secrets findings from Semgrep.</div>
           </label>
         </div>
       </section>
 
-      <!-- Step 3: SARIF config -->
       <section class="step-panel" data-step="sarif-config">
-        <h2>SARIF Configuration</h2>
-        <p class="step-subtitle">Specify the path to your SARIF file. You can add more files later.</p>
-
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 03</div>
+          <h2>SARIF configuration</h2>
+          <p class="step-subtitle">Specify the path to a SARIF file. You can add more files later.</p>
+        </div>
         <div class="form-group">
-          <label for="sarif-file-path">SARIF File Path</label>
-          <input type="text" id="sarif-file-path" placeholder="/path/to/results.sarif">
-          <p class="form-hint">Absolute or relative path to a SARIF file on this machine.</p>
+          <label for="sarif-file-path">SARIF file path</label>
+          <input type="text" id="sarif-file-path" class="input" placeholder="/path/to/results.sarif" aria-describedby="sarif-hint">
+          <p class="form-hint" id="sarif-hint">Absolute or relative path to a SARIF file on this machine.</p>
         </div>
       </section>
 
-      <!-- Step 4: GitHub config -->
       <section class="step-panel" data-step="github-config">
-        <h2>GitHub Configuration</h2>
-        <p class="step-subtitle">Connect your GitHub account to pull Code Scanning alerts.</p>
-
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 04</div>
+          <h2>GitHub configuration</h2>
+          <p class="step-subtitle">Connect your GitHub account to pull Code Scanning alerts.</p>
+        </div>
         <div class="form-group">
           <label for="github-token">Personal Access Token</label>
           <div class="input-wrapper">
-            <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
-            <button type="button" class="toggle-password" id="toggle-github-token">Show</button>
+            <input type="password" id="github-token" class="input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" aria-describedby="github-token-hint">
+            <button type="button" class="toggle-password" id="toggle-github-token" aria-label="Toggle GitHub token visibility">Show</button>
           </div>
-          <p class="form-hint">
-            Use a <strong>Classic PAT</strong> with <code>repo</code> + <code>security_events</code> scopes,
-            or a <strong>Fine-grained PAT</strong> with <code>Metadata</code> (read) + <code>Code scanning alerts</code> (read) permissions.
-            <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Create a token</a>.
-          </p>
+          <p class="form-hint" id="github-token-hint">Use a Classic PAT with <code>repo</code> + <code>security_events</code> scopes, or a Fine-grained PAT with <code>Metadata</code> read + <code>Code scanning alerts</code> read permissions. <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Create a token</a>.</p>
         </div>
-
         <div class="form-group">
-          <button type="button" class="btn btn-secondary" id="test-github-connection">
-            <span class="spinner" style="display:none;"></span>
-            Test Connection
-          </button>
+          <button type="button" class="btn btn-secondary" id="test-github-connection">Test connection</button>
+          <div id="github-status" aria-live="polite"></div>
         </div>
-        <div id="github-status"></div>
-
         <div class="form-group">
-          <label for="github-org">Organization</label>
-          <select id="github-org">
-            <option value="">Test connection to load organizations</option>
-          </select>
+          <label for="github-org">Organization / owner</label>
+          <select id="github-org" aria-label="Organization or owner"><option value="">Test connection to load owners</option></select>
         </div>
-
         <fieldset class="form-group">
-          <legend>Repositories</legend>
+          <legend class="field-label">Repositories</legend>
           <div id="github-repo-list" class="multi-select-list" aria-live="polite">
             <p class="form-hint">Select an owner after testing the connection to choose repositories.</p>
           </div>
@@ -192,121 +146,106 @@
         </fieldset>
       </section>
 
-      <!-- Step 5: SonarCloud config -->
       <section class="step-panel" data-step="sonarcloud-config">
-        <h2>SonarCloud Configuration</h2>
-        <p class="step-subtitle">Connect your SonarCloud account to pull project findings.</p>
-
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 05</div>
+          <h2>SonarCloud configuration</h2>
+          <p class="step-subtitle">Connect your SonarCloud account to pull project findings.</p>
+        </div>
         <div class="form-group">
           <label for="sonarcloud-token">API Token</label>
           <div class="input-wrapper">
-            <input type="password" id="sonarcloud-token" placeholder="Your SonarCloud API token">
-            <button type="button" class="toggle-password" id="toggle-sonarcloud-token">Show</button>
+            <input type="password" id="sonarcloud-token" class="input" placeholder="Your SonarCloud API token" aria-describedby="sonarcloud-token-hint">
+            <button type="button" class="toggle-password" id="toggle-sonarcloud-token" aria-label="Toggle SonarCloud token visibility">Show</button>
           </div>
-          <p class="form-hint">Generate a token at <a href="https://sonarcloud.io/account/security" target="_blank" rel="noopener">SonarCloud → My Account → Security</a>.</p>
+          <p class="form-hint" id="sonarcloud-token-hint">Generate a token at <a href="https://sonarcloud.io/account/security" target="_blank" rel="noopener">SonarCloud → My Account → Security</a>.</p>
         </div>
-
         <div class="form-group">
-          <label for="sonarcloud-organization">Organization Key</label>
-          <input type="text" id="sonarcloud-organization" placeholder="your-organization-key">
-          <p class="form-hint">Required to list SonarCloud projects. Find it in your SonarCloud organization URL or organization settings.</p>
+          <label for="sonarcloud-organization">Organization key</label>
+          <input type="text" id="sonarcloud-organization" class="input" placeholder="your-organization-key">
+          <p class="form-hint">Required to list SonarCloud projects. Find it in your SonarCloud organization URL or settings.</p>
         </div>
-
         <div class="form-group">
-          <button type="button" class="btn btn-secondary" id="test-sonarcloud-connection">
-            Test Connection
-          </button>
+          <button type="button" class="btn btn-secondary" id="test-sonarcloud-connection">Test connection</button>
+          <div id="sonarcloud-status" aria-live="polite"></div>
         </div>
-        <div id="sonarcloud-status"></div>
-
         <div class="form-group">
-          <label for="sonarcloud-project">Project Key</label>
-          <select id="sonarcloud-project">
-            <option value="">Enter organization and test connection to load projects</option>
-          </select>
+          <label for="sonarcloud-project">Project key</label>
+          <select id="sonarcloud-project" aria-label="SonarCloud project"><option value="">Enter organization and test connection to load projects</option></select>
         </div>
       </section>
 
-      <!-- Step 6: Socket.dev config -->
       <section class="step-panel" data-step="socket-config">
-        <h2>Socket.dev Configuration</h2>
-        <p class="step-subtitle">Connect your Socket.dev organization to pull dependency risk findings.</p>
-
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 06</div>
+          <h2>Socket.dev configuration</h2>
+          <p class="step-subtitle">Connect your Socket.dev organization to pull dependency risk findings.</p>
+        </div>
         <div class="form-group">
           <label for="socket-token">API Token</label>
           <div class="input-wrapper">
-            <input type="password" id="socket-token" placeholder="Your Socket.dev API token">
-            <button type="button" class="toggle-password" id="toggle-socket-token">Show</button>
+            <input type="password" id="socket-token" class="input" placeholder="Your Socket.dev API token" aria-describedby="socket-token-hint">
+            <button type="button" class="toggle-password" id="toggle-socket-token" aria-label="Toggle Socket.dev token visibility">Show</button>
           </div>
-          <p class="form-hint">Generate an organization token at <a href="https://socket.dev/settings/org" target="_blank" rel="noopener">Socket.dev → Organization Settings</a>. Required scope: <code>alerts:list</code>. No repository write scopes are required.</p>
+          <p class="form-hint" id="socket-token-hint">Generate an organization token at <a href="https://socket.dev/settings/org" target="_blank" rel="noopener">Socket.dev → Organization Settings</a>. Required scope: <code>alerts:list</code>. No repository write scopes are required.</p>
         </div>
-
         <div class="form-group">
-          <label for="socket-organization">Organization Slug</label>
-          <input type="text" id="socket-organization" placeholder="your-org-slug">
-          <p class="form-hint">Required to scope Socket.dev alerts to the current repository during sync. Find it in your Socket.dev dashboard URL: <code>https://socket.dev/dashboard/org/&lt;org-slug&gt;</code> (for example, <code>xxx-xxxxxx</code>).</p>
+          <label for="socket-organization">Organization slug</label>
+          <input type="text" id="socket-organization" class="input" placeholder="your-org-slug">
+          <p class="form-hint">Required to scope Socket.dev alerts during sync. Find it in your dashboard URL: <code>https://socket.dev/dashboard/org/&lt;org-slug&gt;</code>.</p>
         </div>
-
         <div class="form-group">
-          <button type="button" class="btn btn-secondary" id="test-socket-connection">
-            <span class="spinner" style="display:none;"></span>
-            Test Connection
-          </button>
+          <button type="button" class="btn btn-secondary" id="test-socket-connection">Test connection</button>
+          <div id="socket-status" aria-live="polite"></div>
         </div>
-        <div id="socket-status"></div>
       </section>
 
-      <!-- Step 7: Snyk config -->
       <section class="step-panel" data-step="snyk-config">
-        <h2>Snyk Configuration</h2>
-        <p class="step-subtitle">Connect your Snyk account to import project vulnerabilities.</p>
-
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 07</div>
+          <h2>Snyk configuration</h2>
+          <p class="step-subtitle">Connect your Snyk account to import project vulnerabilities.</p>
+        </div>
         <div class="form-group">
           <label for="snyk-token">API Token</label>
           <div class="input-wrapper">
-            <input type="password" id="snyk-token" placeholder="Your Snyk API token">
-            <button type="button" class="toggle-password" id="toggle-snyk-token">Show</button>
+            <input type="password" id="snyk-token" class="input" placeholder="Your Snyk API token" aria-describedby="snyk-token-hint">
+            <button type="button" class="toggle-password" id="toggle-snyk-token" aria-label="Toggle Snyk token visibility">Show</button>
           </div>
-          <p class="form-hint">Create a personal or service account token at <a href="https://app.snyk.io/account" target="_blank" rel="noopener">Snyk → Account Settings</a>.</p>
+          <p class="form-hint" id="snyk-token-hint">Create a personal or service account token at <a href="https://app.snyk.io/account" target="_blank" rel="noopener">Snyk → Account Settings</a>.</p>
         </div>
-
         <div class="form-group">
           <label for="snyk-organization">Organization ID</label>
-          <input type="text" id="snyk-organization" placeholder="your-snyk-org-id">
-          <p class="form-hint">Required to scope Snyk issues to the current repository during sync. Find it in your Snyk URL (<code>https://app.snyk.io/org/&lt;org-id&gt;</code>) or under Snyk → Organization Settings.</p>
+          <input type="text" id="snyk-organization" class="input" placeholder="your-snyk-org-id">
+          <p class="form-hint">Required to scope Snyk issues during sync. Find it in your Snyk URL or Organization Settings.</p>
         </div>
-
         <div class="form-group">
-          <button type="button" class="btn btn-secondary" id="test-snyk-connection">
-            <span class="spinner" style="display:none;"></span>
-            Test Connection
-          </button>
+          <button type="button" class="btn btn-secondary" id="test-snyk-connection">Test connection</button>
+          <div id="snyk-status" aria-live="polite"></div>
         </div>
-        <div id="snyk-status"></div>
       </section>
 
-      <!-- Step 8: Semgrep config -->
       <section class="step-panel" data-step="semgrep-config">
-        <h2>Semgrep Configuration</h2>
-        <p class="step-subtitle">Connect your Semgrep deployment to pull code and supply-chain findings.</p>
-
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 08</div>
+          <h2>Semgrep configuration</h2>
+          <p class="step-subtitle">Connect your Semgrep deployment to pull code and supply-chain findings.</p>
+        </div>
         <div class="form-group">
           <label for="semgrep-token">Web API Token</label>
           <div class="input-wrapper">
-            <input type="password" id="semgrep-token" placeholder="Your Semgrep web API token">
-            <button type="button" class="toggle-password" id="toggle-semgrep-token">Show</button>
+            <input type="password" id="semgrep-token" class="input" placeholder="Your Semgrep web API token" aria-describedby="semgrep-token-hint">
+            <button type="button" class="toggle-password" id="toggle-semgrep-token" aria-label="Toggle Semgrep token visibility">Show</button>
           </div>
-          <p class="form-hint">Generate a token at <a href="https://semgrep.dev/orgs/-/settings/tokens" target="_blank" rel="noopener">Semgrep → Settings → Tokens</a>.</p>
+          <p class="form-hint" id="semgrep-token-hint">Generate a token at <a href="https://semgrep.dev/orgs/-/settings/tokens" target="_blank" rel="noopener">Semgrep → Settings → Tokens</a>.</p>
         </div>
-
         <div class="form-group">
-          <label for="semgrep-deployment">Deployment Slug</label>
-          <input type="text" id="semgrep-deployment" placeholder="your-deployment-slug">
-          <p class="form-hint">Required to scope Semgrep findings during sync. Open your Semgrep dashboard and copy the URL segment after <code>/orgs/</code>; for example, <code>https://semgrep.dev/orgs/example-org/projects/scanning</code> uses <code>example-org</code>.</p>
+          <label for="semgrep-deployment">Deployment slug</label>
+          <input type="text" id="semgrep-deployment" class="input" placeholder="your-deployment-slug">
+          <p class="form-hint">Required to scope Semgrep findings during sync. Copy the URL segment after <code>/orgs/</code>.</p>
         </div>
-
         <fieldset class="form-group">
-          <legend id="semgrep-issue-type-label">Finding Types</legend>
+          <legend class="field-label" id="semgrep-issue-type-label">Finding types</legend>
           <div id="semgrep-issue-type-options" class="radio-group" aria-labelledby="semgrep-issue-type-label">
             <label class="radio-option selected">
               <input type="radio" name="semgrep-issue-type" value="both" checked>
@@ -315,7 +254,6 @@
                 <div class="radio-desc">Create separate Semgrep sources for SAST and dependency findings. Recommended.</div>
               </div>
             </label>
-
             <label class="radio-option">
               <input type="radio" name="semgrep-issue-type" value="sast">
               <div>
@@ -323,7 +261,6 @@
                 <div class="radio-desc">Import Semgrep Code findings with <code>issue_type=sast</code>.</div>
               </div>
             </label>
-
             <label class="radio-option">
               <input type="radio" name="semgrep-issue-type" value="sca">
               <div>
@@ -332,111 +269,103 @@
               </div>
             </label>
           </div>
-          <p class="form-hint">Semgrep serves Supply Chain findings from a separate API mode, so selecting both writes two scanner sources that share the same token and deployment.</p>
+          <p class="form-hint">Selecting both writes two scanner sources that share the same token and deployment.</p>
         </fieldset>
-
         <div class="form-group">
-          <button type="button" class="btn btn-secondary" id="test-semgrep-connection">
-            <span class="spinner" style="display:none;"></span>
-            Test Connection
-          </button>
+          <button type="button" class="btn btn-secondary" id="test-semgrep-connection">Test connection</button>
+          <div id="semgrep-status" aria-live="polite"></div>
         </div>
-        <div id="semgrep-status"></div>
       </section>
 
-      <!-- Step 9: Security settings -->
       <section class="step-panel" data-step="security-settings">
-        <h2>Security Settings</h2>
-        <p class="step-subtitle">Choose how oh-my-triage stores your scanner tokens.</p>
-
-        <div class="radio-group">
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 09</div>
+          <h2>Security settings</h2>
+          <p class="step-subtitle">Choose how oh-my-triage stores scanner tokens.</p>
+        </div>
+        <fieldset class="radio-group">
+          <legend class="field-label">Token storage</legend>
           <label class="radio-option selected">
             <input type="radio" name="token-storage" value="keychain" checked>
             <div>
-              <div class="radio-label">System Keychain</div>
-              <div class="radio-desc">Store tokens securely in your OS keychain (recommended). Tokens are encrypted and never stored in plaintext.</div>
+              <div class="radio-label">System keychain</div>
+              <div class="radio-desc">Store tokens securely in your OS keychain. Recommended for local setup.</div>
             </div>
           </label>
-
           <label class="radio-option">
             <input type="radio" name="token-storage" value="encrypted-file">
             <div>
-              <div class="radio-label">Development File Fallback</div>
-              <div class="radio-desc">Store raw tokens in oh-my-triage's local development credential file with restricted file permissions. Raw tokens are never written to the main config, but this is not recommended for production secrets.</div>
+              <div class="radio-label">Development file fallback</div>
+              <div class="radio-desc">Store raw tokens in a local development credential file with restricted file permissions.</div>
             </div>
           </label>
-
           <label class="radio-option">
             <input type="radio" name="token-storage" value="env">
             <div>
-              <div class="radio-label">Environment Variables</div>
-              <div class="radio-desc">Read tokens from environment variables at runtime. Most secure for CI/CD but requires manual setup.</div>
+              <div class="radio-label">Environment variables</div>
+              <div class="radio-desc">Read tokens from environment variables at runtime. Best for CI/CD.</div>
             </div>
           </label>
-        </div>
-        <div id="security-status"></div>
+        </fieldset>
+        <div id="security-status" aria-live="polite"></div>
       </section>
 
-      <!-- Step 10: MCP config -->
       <section class="step-panel" data-step="mcp-config">
-        <h2>MCP Configuration</h2>
-        <p class="step-subtitle">Generate MCP client configuration so your AI tools can connect to oh-my-triage.</p>
-
-        <div id="mcp-status"></div>
-
-        <div class="form-group">
-          <div class="field-label" id="mcp-client-list-label">Select MCP Client</div>
-          <div id="mcp-client-list" class="radio-group" aria-labelledby="mcp-client-list-label"></div>
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 10</div>
+          <h2>MCP configuration</h2>
+          <p class="step-subtitle">Generate MCP client configuration so AI tools can connect to oh-my-triage.</p>
         </div>
-
+        <div id="mcp-status" aria-live="polite"></div>
+        <fieldset class="form-group">
+          <legend class="field-label" id="mcp-client-list-label">Select MCP client</legend>
+          <div id="mcp-client-list" class="radio-group" aria-labelledby="mcp-client-list-label"></div>
+        </fieldset>
         <div class="form-group">
-          <div class="field-label" id="config-preview-label">Configuration Preview</div>
+          <div class="field-label" id="config-preview-label">Configuration preview</div>
           <div class="config-preview">
             <div class="config-preview-header">
-              <span>mcp_config.json</span>
+              <div class="config-preview-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+              <span class="config-preview-title">mcp_config.json</span>
               <button type="button" class="btn btn-ghost btn-sm" id="copy-config">Copy</button>
             </div>
             <pre id="config-preview-content" aria-labelledby="config-preview-label">Select a client to preview configuration.</pre>
           </div>
         </div>
-
         <div class="form-group">
-          <button type="button" class="btn btn-primary" id="write-mcp-config">Write Configuration</button>
+          <button type="button" class="btn btn-primary" id="write-mcp-config">Write configuration</button>
         </div>
       </section>
 
-      <!-- Step 11: Summary -->
       <section class="step-panel" data-step="summary">
-        <h2>All Set!</h2>
-        <p class="step-subtitle">Review your setup configuration before starting the server.</p>
-
-        <div class="summary-grid">
-          <div class="summary-card">
+        <div class="step-header">
+          <div class="step-eyebrow">Setup / 11</div>
+          <h2>All set</h2>
+          <p class="step-subtitle">Review the setup configuration before starting the server.</p>
+        </div>
+        <div class="summary-readout">
+          <div class="summary-item">
             <div class="summary-value" id="summary-findings-count">0</div>
-            <div class="summary-label">Findings Indexed</div>
+            <div class="summary-label">Findings indexed</div>
           </div>
-          <div class="summary-card">
+          <div class="summary-item">
             <div class="summary-value" id="summary-scanners-count">0</div>
-            <div class="summary-label">Scanners Connected</div>
+            <div class="summary-label">Scanners connected</div>
           </div>
-          <div class="summary-card">
+          <div class="summary-item">
             <div class="summary-value" id="summary-clients-count">0</div>
-            <div class="summary-label">MCP Clients</div>
+            <div class="summary-label">MCP clients</div>
           </div>
         </div>
-
-        <h3 style="margin-bottom: var(--space-4);">Connected Scanners</h3>
+        <h3 class="section-title">Connected scanners</h3>
         <div class="scanner-list" id="summary-scanners"></div>
-
-        <div id="summary-status"></div>
+        <div id="summary-status" aria-live="polite"></div>
       </section>
 
-      <!-- ── Navigation ── -->
       <div class="btn-group">
         <button class="btn btn-secondary" id="btn-prev" disabled>Back</button>
         <button class="btn btn-primary" id="btn-next">Continue</button>
       </div>
-
     </main>
   </div>
 
